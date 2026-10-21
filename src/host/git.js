@@ -15,7 +15,7 @@
  *     using.
  *
  *  2. Credentials are injected per invocation via
- *     `-c http.extraheader=Authorization: Basic <token>` plus
+ *     `http.extraheader=Authorization: Basic <token>` in the child ENVIRONMENT plus
  *     `-c credential.helper=` — never written to `.git/config`, never put in a
  *     shell, and never persisted anywhere. The extraheader works for
  *     github.com over https; the emptied helper list means git can NEVER fall
@@ -106,7 +106,10 @@ export function redact(text, secrets = []) {
     // and a future scheme must not silently escape redaction either.
     .replace(/(Authorization:\s*\S+\s+)\S+/gi, '$1***')
     .replace(/\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{16,}\b/g, '***')
-    .replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, '***');
+    .replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, '***')
+    // A PEM block is a credential. Keep the BEGIN/END markers (useful for
+    // diagnosis) and mask everything between them.
+    .replace(/(-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----)[\s\S]*?(-----END [A-Z0-9 ]*PRIVATE KEY-----)/g, '$1\n***\n$2');
 }
 
 /** Truncate to `max` characters; the caller decides whether to flag it. */
@@ -205,20 +208,31 @@ const TLS_FAILURE = /server certificate verification failed|SSL certificate prob
  * @param {{username?: string}} [options]
  * @returns {string[]} flattened `-c key=value` pairs.
  */
-export function authConfig(token, options = {}) {
-  if (typeof token !== 'string' || token === '') return [];
+export function authEnv(token, options = {}) {
+  const base = { GIT_TERMINAL_PROMPT: '0' };
+  if (typeof token !== 'string' || token === '') return base;
   const username = typeof options.username === 'string' && options.username !== ''
     ? options.username
     : GITHUB_HTTPS_USERNAME;
   // HTTP Basic for the git transport: github.com rejects Bearer here even
-  // though its REST API accepts it. The pair is a single opaque value passed
-  // with -c, so it never appears in the repository config or on disk.
+  // though its REST API accepts it.
   const basic = Buffer.from(`${username}:${token}`, 'utf8').toString('base64');
-  return [
-    '-c', 'credential.helper=',
-    '-c', `credential.username=${username}`,
-    '-c', `http.extraheader=Authorization: Basic ${basic}`,
+  const pairs = [
+    ['credential.helper', ''],
+    ['credential.username', username],
+    ['http.extraheader', `Authorization: Basic ${basic}`],
   ];
+  // git >= 2.31 reads config from the environment. Passing it this way keeps
+  // the credential OUT of argv: another local account can read a process
+  // command line, but not its environment, and argv is what ends up in crash
+  // dumps and audit logs.
+  const env = { ...base };
+  env.GIT_CONFIG_COUNT = String(pairs.length);
+  pairs.forEach(([key, value], index) => {
+    env[`GIT_CONFIG_KEY_${index}`] = key;
+    env[`GIT_CONFIG_VALUE_${index}`] = value;
+  });
+  return env;
 }
 
 /**
@@ -254,7 +268,7 @@ export function parseGithubRemote(url) {
  * (CONTRACT §3b `target`).
  *
  * The URL carries NO credential: the token travels only as the per-invocation
- * `http.extraheader` (see {@link authConfig}), so it can never be read back
+ * `http.extraheader` (see {@link authEnv}), so it can never be read back
  * from `.git/config`, from argv, or from git's own error output. The literal
  * `x-access-token` is a public, documented placeholder.
  *
@@ -1206,7 +1220,7 @@ export class GitRunner {
   async fetch(path, options = {}) {
     const root = await this.assertRepo(path, options);
     const remote = nonEmpty(options.remote) ?? 'origin';
-    const args = [...authConfig(options.token), 'fetch', remote];
+    const args = ['fetch', remote];
     if (options.prune === true) args.push('--prune');
     return this.#network(root.root, args, 'fetch', options);
   }
@@ -1223,7 +1237,7 @@ export class GitRunner {
     const root = await this.assertRepo(path, options);
     const remote = nonEmpty(options.remote) ?? 'origin';
     const branch = nonEmpty(options.branch);
-    const args = [...authConfig(options.token), 'pull'];
+    const args = ['pull'];
     if (options.rebase === true) args.push('--rebase');
     args.push(remote);
     if (branch) args.push(branch);
@@ -1265,7 +1279,7 @@ export class GitRunner {
     // (`<src>:<dst>`), and pinning it explicitly is what makes "push this
     // exact version" possible without moving HEAD first.
     const source = nonEmpty(options.source) ?? branch;
-    const args = [...authConfig(options.token, { username: options.username }), 'push'];
+    const args = ['push'];
     // `--force-with-lease` rather than `--force`: the user asked for force, but
     // refusing to clobber commits pushed by someone else is the behaviour that
     // does not silently destroy their work.
@@ -1449,7 +1463,7 @@ export class GitRunner {
     const remote = nonEmpty(options.remote) ?? 'origin';
     const pushed = await this.#network(
       root.root,
-      [...authConfig(options.token), 'push', remote, name],
+      ['push', remote, name],
       'push',
       options,
     );
@@ -1546,7 +1560,9 @@ export class GitRunner {
       label,
       timeoutMs: NETWORK_TIMEOUT_MS,
       secrets: options.secrets,
-      env: { GIT_TERMINAL_PROMPT: '0' },
+      // One place: the token becomes configuration in the CHILD ENVIRONMENT
+      // instead of an argv element, for every network command.
+      env: authEnv(options.token, { username: options.username }),
     });
     if (out.code !== 0) {
       const raw = `${out.stdout}${out.stderr}`.trim();

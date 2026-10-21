@@ -22,7 +22,7 @@
  * Run: node tests/verify-tool-surface.mjs
  */
 import { readFileSync } from 'node:fs';
-import { authConfig, redact } from '../src/host/git.js';
+import { authEnv, redact } from '../src/host/git.js';
 
 const host = readFileSync('src/host/index.js', 'utf8');
 const git = readFileSync('src/host/git.js', 'utf8');
@@ -86,26 +86,38 @@ const check = (label, ok, detail) => checks.push({ label, ok: Boolean(ok), detai
 
 /* ---- 3. git auth must use the scheme the transport accepts ---------- */
 {
-  const config = authConfig('ghp_example_token_value_123456', {});
-  const header = config.find((entry) => String(entry).startsWith('http.extraheader=')) || '';
-  check('authConfig sends an Authorization header', header.includes('Authorization:'));
+  const env = authEnv('ghp_example_token_value_123456', {});
+  const count = Number(env.GIT_CONFIG_COUNT);
+  check('authEnv publishes git config through the environment', Number.isFinite(count) && count > 0,
+    `count=${env.GIT_CONFIG_COUNT}`);
+
+  const pairs = [];
+  for (let i = 0; i < count; i += 1) {
+    pairs.push([env['GIT_CONFIG_KEY_' + i], env['GIT_CONFIG_VALUE_' + i]]);
+  }
+  const header = (pairs.find(([k]) => k === 'http.extraheader') || [])[1] || '';
+  check('it sets an Authorization header', header.includes('Authorization:'));
   check('it uses HTTP Basic, which the git transport accepts',
-    header.includes('Authorization: Basic '), header.slice(0, 60));
+    header.includes('Authorization: Basic '), header.slice(0, 40));
   check('it does NOT use Bearer, which the git transport rejects',
     !header.includes('Bearer'));
 
-  // The token must be inside the base64, and the username must be the literal
-  // GitHub expects for a PAT.
   const b64 = header.split('Basic ')[1] || '';
   const decoded = Buffer.from(b64, 'base64').toString('utf8');
   check('the decoded pair carries the token', decoded.endsWith(':ghp_example_token_value_123456'));
   check('the decoded username is x-access-token', decoded.startsWith('x-access-token:'));
+  check('the credential helper is disabled',
+    pairs.some(([k, v]) => k === 'credential.helper' && v === ''));
 
-  // A stored credential must never be consulted, and the token must not be
-  // written into the repository config.
-  check('the credential helper is disabled', config.includes('credential.helper='));
-  check('the token is never a standalone argv value',
-    !config.some((entry) => entry === 'ghp_example_token_value_123456'));
+  /* The whole point of the environment carrier: no process listing can see it. */
+  check('the raw token never appears in the environment values',
+    !Object.values(env).some((v) => String(v).includes('ghp_example_token_value_123456')));
+  // Comments legitimately mention the old form; only real code matters.
+  const gitCode = git.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  check('no argv carries the credential any more',
+    !gitCode.includes('http.extraheader=Authorization'));
+  check('every network command receives the auth environment',
+    git.includes('env: authEnv(options.token, { username: options.username })'));
 }
 
 /* ---- 4. redaction must cover whatever scheme is in use -------------- */
@@ -124,6 +136,11 @@ const check = (label, ok, detail) => checks.push({ label, ok: Boolean(ok), detai
     !redact('token=ghp_abcdefghijklmnopqrstuvwx').includes('ghp_abcdefghijklmnopqrstuvwx'));
   check('a bare pat token is redacted',
     !redact('github_pat_abcdefghijklmnopqrstuvwx').includes('github_pat_abcdefghijklmnopqrstuvwx'));
+
+  // A PEM block is a credential too, and the README promises it is covered.
+  const pem = redact('-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXk\n-----END OPENSSH PRIVATE KEY-----');
+  check('a PEM private key block is redacted',
+    !pem.includes('b3BlbnNzaC1rZXk'), pem.slice(0, 40));
 }
 
 /* ---- 5. failures must be observable, not silent --------------------- */

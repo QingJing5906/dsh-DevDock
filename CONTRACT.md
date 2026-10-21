@@ -308,8 +308,12 @@ ReviewPreset = {
 ```ts
 {
   reviewId: string,
-  model: { provider: string, model: string, label: string },
+  model: { provider: string, model: string, label: string } | null,
   effort: string | null,
+  scope: 'working' | 'outgoing',   // 审的是工作区改动还是待推送提交
+  outgoingCommits: number,         // scope=outgoing 时的提交数，否则 0
+  truncated: boolean,              // 改动过多、有内容未送审
+  degraded: boolean,               // 模型未参与、只跑了规则扫描
   files: { path: string, additions: number, deletions: number, skipped?: string }[],
   findings: {
     severity: 'blocker' | 'high' | 'medium' | 'low' | 'info',
@@ -329,14 +333,20 @@ ReviewPreset = {
 
 1. **只审将要推送的差异**。默认取 `HEAD` 与工作区的差异（含未跟踪文件，逐个读取内容）；
    `staged: true` 时只取 `--cached`。单文件内容超过 200 KB 或二进制时标记 `skipped`。
-2. **模式规则先行**（不花钱）：Host 先用正则扫一遍已知密钥形态
+2. **工作区没有改动时，改审待推送提交**。推送前的常态是工作区干净、提交已就绪，
+   此时若只读工作区就会返回「无改动」并零发现——对安全功能而言这是最糟的静默漏报。
+   回退规则：有 upstream 时以 `merge-base(upstream, HEAD)` 为基准；无 upstream 时以
+   `refs/remotes/origin/<branch>` 为基准；两者都不存在（分支首次推送）时以空树
+   `4b825dc642cb6eb9a060e54bf8d69288fbee4904` 为基准。结果中的 `scope` 字段标明
+   本次审查的是哪一类（`working` / `outgoing`），`outgoingCommits` 给出待推送提交数。
+3. **模式规则先行**（不花钱）：Host 先用正则扫一遍已知密钥形态
    （`ghp_[A-Za-z0-9]{36}`、`github_pat_`、`sk-`、`AKIA[0-9A-Z]{16}`、私钥块、
    `xox[baprs]-`、Bearer 长串），命中即产出 `blocker` 级 finding。
    这样即使模型不可用，最危险的一类问题也有答案。
-3. **模型审查**：把选中预设的 prompt + 自定义提示词拼成一次 `llm` 调用，
+4. **模型审查**：把选中预设的 prompt + 自定义提示词拼成一次 `llm` 调用，
    要求模型只输出 JSON（`{findings:[],summary:""}`）。解析失败时降级：
    把模型原文放进 `summary` 且 `findings` 为模式规则的结果，不报错。
-4. **模型不可用**（未注册 provider、鉴权失败、网络错误）：返回
+5. **模型不可用**（未注册 provider、鉴权失败、网络错误）：返回
    `{ ok:true, data:{ ..., model: null, findings: <模式规则结果>, summary: '<中文说明>' } }`，
    并在 `degraded: true` 标注；绝不因审查失败阻塞推送。
 5. 令牌等秘密**永不写进 findings**：命中时只保留位置与类型（如 `ghp_…（已隐藏）`）。
@@ -346,6 +356,56 @@ ReviewPreset = {
 - `GET /review/models` → `{ providers: { id, name, models: { id, name, efforts: { id, name }[], defaultEffort }[] }[], default: { provider, model } | null }`
   由 Host 侧 `llm` 服务枚举；宿主没有 `llm` 时返回空数组与 `default: null`，
   界面据此显示「宿主未提供模型配置」。
+
+## 3e. 仓库信息与发布附件
+
+客户端用到的、与仓库展示和发布相关的能力。
+
+### 语言构成
+
+- `GET /repos/languages?owner=&name=`
+  → `{ items: { name: string, bytes: number, percent: number }[], warning?: string }`
+  - 按字节降序；`percent` 保留一位小数，由 Host 计算，客户端只渲染
+  - 仓库不可见或无语言数据时返回 `{ items: [] }`，**不报错**（卡片只是不画条形图）
+
+### 发布附件
+
+- `POST /releases/asset` body：
+```ts
+{
+  owner: string, name: string, releaseId: string,
+  fileName: string,
+  contentType?: string,
+  base64: string        // 文件内容；上限 200 MB，超出返回 BAD_REQUEST
+}
+```
+  → `{ asset: { id, name, size, downloadUrl } }`
+  - 附件上传走 `uploads.github.com`（不是 `api.github.com`），URL 由 `API_BASE` 推导
+
+- `POST /releases/asset/delete` body：`{ owner, name, assetId }` → `{ deleted: true }`
+  - 404 也视为已删除（幂等）
+
+### 发布对象
+
+`Release` 额外携带附件列表，供界面展示与删除：
+```ts
+assets: { id: string, name: string, size: number, downloadUrl: string }[]
+```
+
+### 仓库字段补充
+
+`RemoteRepo` 除 `fork: boolean` 外还带计数 `forks: number`（列表与卡片展示用）。
+
+### 推送记忆
+
+- `POST /local/push/target/forget` body：`{ path, branch? }` → `{ forgotten: true }`
+  - 清除该分支（或全部）的推送目标记忆
+
+### 诊断
+
+- `GET /diagnostics` → `{ toolsService, tool: { name, attempted, registered, visible, inSchemas, error } }`
+  - 回答「智能体为什么看不到 `github_link`」。注册失败会被记录下来而不是只写日志。
+
 
 ## 4. Agent 工具（可选但要对齐）
 
@@ -367,3 +427,17 @@ Host 另注册一个工具 `github_link`，`action` 参数取值与上表一致�
 - `dsh-push/index.js`、`dsh-push/src/host/**` → host-dev
 - `dsh-push/client.js`、`dsh-push/client.css` → client-dev
 - `dsh-push/package.json`、`cordis.patch.yml`、`locale/**`、`icon.svg`、`README.md` → lead
+
+### 动作清单
+
+```text
+status · log · push · pull · commit · repos · accounts
+create_repo · release · review
+```
+
+- `push` / `release` 都接受 `owner` + `repo` 指定目标仓库，因此智能体无需预先配置远端
+- `review` 与弹窗走同一个 `reviewRun` 服务方法，返回 `scope` 与 `findings`
+- 工具结果必须是**无损 JSON**：findings 的缺失字段一律投影为 `null`，不能留 `undefined`
+- schema 只能用宿主支持的子集（`type` / `oneOf` / `properties` / `required` /
+  `additionalProperties` / `items` / `enum` / `const`）；`type: [...]` 与 `anyOf`
+  会让整个注册失败，工具从此对模型不可见

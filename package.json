@@ -51,7 +51,7 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node tests/verify-client.mjs && node tests/verify-cards.mjs && node tests/verify-tool-surface.mjs && node tests/verify-errors.mjs && node tests/verify-push-memory.mjs && node tests/verify-delete-semantics.mjs && node tests/verify-review-rules.mjs && node tests/verify-review-store.mjs && node tests/verify-review-scope.mjs && node tests/audit-reachability.mjs",
+    "test": "node tests/verify-client.mjs && node tests/verify-cards.mjs && node tests/verify-tool-surface.mjs && node tests/verify-errors.mjs && node tests/verify-push-memory.mjs && node tests/verify-delete-semantics.mjs && node tests/verify-review-rules.mjs && node tests/verify-review-store.mjs && node tests/verify-review-scope.mjs && node tests/verify-contract.mjs && node tests/audit-reachability.mjs",
     "test:refspec": "powershell -ExecutionPolicy Bypass -File tests/run-refspec.ps1",
     "prepublishOnly": "npm test"
   },

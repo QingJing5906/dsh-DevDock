@@ -1,0 +1,12 @@
+# Normalize line endings so the published package and every clone agree.
+# The source is authored on Windows but must run anywhere.
+* text=auto eol=lf
+
+# Windows-only helper keeps CRLF for PowerShell.
+*.ps1 text eol=crlf
+
+# Binary-ish assets are left untouched.
+*.svg text
+*.png binary
+*.jpg binary
+*.ico binary

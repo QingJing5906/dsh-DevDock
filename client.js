@@ -298,6 +298,9 @@ window.__ModuleLoader__.load({
       assetSizeKb: "{n} KB",
       releaseFrom: "发版自",
       releaseFromHint: "选一个分支、标签或填写提交 SHA；留空则用默认分支最新提交",
+      tabPickInclude: "包含",
+      tabPickExclude: "排除",
+      tabPickHint: "是否包含在本次提交中",
       rvTitle: "推送前审查",
       rvClose: "关闭",
       rvSettings: "设置",
@@ -749,6 +752,9 @@ window.__ModuleLoader__.load({
       assetSizeKb: "{n} KB",
       releaseFrom: "Release from",
       releaseFromHint: "A branch, tag, or commit SHA; blank uses the default branch tip",
+      tabPickInclude: "Include",
+      tabPickExclude: "Exclude",
+      tabPickHint: "Include this file in the next commit",
       rvTitle: "Pre-push review",
       rvClose: "Close",
       rvSettings: "Settings",
@@ -3570,7 +3576,10 @@ window.__ModuleLoader__.load({
         tabs: h(TabRow, { value: tab, options: tabs, onChange: setTab }),
         footer: [
           h('div', { className: 'dsh-push-modal-status', key: 'status' },
-            actionError ? h('div', { className: 'dsh-push-error' }, actionError) : null,
+            /* Feedback for asset upload/delete. It was being set and never shown,
+           so a successful upload looked like nothing had happened. */
+        actionNotice ? h('div', { className: 'dsh-push-hint dsh-push-notice' }, actionNotice) : null,
+        actionError ? h('div', { className: 'dsh-push-error' }, actionError) : null,
             notice ? h('div', { className: 'dsh-push-ok' }, notice) : null,
             busy ? h('div', { className: 'dsh-push-hint' }, t('busy')) : null),
           h(Btn, { key: 'refresh', disabled: busy, onClick: load }, t('manageRefresh')),
@@ -3963,6 +3972,14 @@ window.__ModuleLoader__.load({
 
       useEffect(() => { loadState(); loadRepos(''); }, [loadState, loadRepos]);
 
+      // Cards need each repo's language mix, which the list payload does not
+      // carry. Without this, every card bar on the settings page stayed in the
+      // empty state while the README promised a proportion bar.
+      useEffect(() => {
+        if (repos.length === 0) return;
+        prefetchLanguages(ctx, repos);
+      }, [ctx, repos]);
+
       const runSearch = () => {
         setSearch(query.trim());
         setExpanded('');
@@ -4018,7 +4035,7 @@ window.__ModuleLoader__.load({
             // §3c requires an explicit confirmation for destructive repo
             // actions; these surfaces already arm a two-step confirm in the
             // UI, so the flag records the user's intent rather than bypassing
-            // it.\n            body: { owner: repo.owner, name: repo.name, confirm: true },
+            body: { owner: repo.owner, name: repo.name, confirm: true },
           });
           if (!aliveRef.current) return;
           setNotice(t('tabDone', { label: t('repoDelete') }));
@@ -4175,8 +4192,10 @@ window.__ModuleLoader__.load({
                     repo,
                     size: cardSize,
                     languages: languageOf(repo),
-                    onOpen: () => props.onOpenManage(repo),
-                    onManage: () => props.onOpenManage(repo),
+                    // ReposSection owns its own manage dialog; calling a
+                    // prop that SettingsSection never passes crashed the click.
+                    onOpen: () => setManageRepo(repo),
+                    onManage: () => setManageRepo(repo),
                   })))
                   : shown.map(renderRepo)),
 
@@ -4814,7 +4833,7 @@ window.__ModuleLoader__.load({
             // §3c requires an explicit confirmation for destructive repo
             // actions; these surfaces already arm a two-step confirm in the
             // UI, so the flag records the user's intent rather than bypassing
-            // it.\n            body: { owner: repo.owner, name: repo.name, confirm: true },
+            body: { owner: repo.owner, name: repo.name, confirm: true },
           });
           setNotice(t('tabDone', { label: t('repoDelete') }));
           setExpanded('');
@@ -7449,18 +7468,20 @@ function ReviewDialog(props) {
                 className: 'dsh-push-checkbox',
                 checked: isPicked(file.path),
                 'aria-label': t('tabIncludeFiles'),
-                title: t('tabStageHint'),
+                title: t('tabPickHint'),
                 onClick: (event) => event.stopPropagation(),
                 onChange: () => togglePick(file.path),
               }),
               h('span', { className: 'dsh-push-file-name' }, file.path),
               h('div', { className: 'dsh-push-file-actions' },
+                // This toggles INCLUSION in the next commit, not the git
+                // index, so the label must not say 暂存/取消暂存.
                 h(Btn, {
                   mini: true,
                   disabled: Boolean(busy),
-                  title: t('tabStageHint'),
+                  title: t('tabPickHint'),
                   onClick: () => togglePick(file.path),
-                }, file.staged ? t('tabUnstage') : t('tabStage')),
+                }, isPicked(file.path) ? t('tabPickExclude') : t('tabPickInclude')),
                 file.conflicted
                   ? null
                   : h(Btn, {
