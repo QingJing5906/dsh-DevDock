@@ -223,6 +223,128 @@ export const MAX_FILE_BYTES = 200 * 1024;
 /** Guard against a runaway diff taking the whole request budget. */
 const MAX_PATCH_CHARS = 400_000;
 
+
+/**
+ * The base a push would start from: the merge-base with the branch's upstream.
+ *
+ * @param {import('./git.js').GitRunner} runner
+ * @param {string} path
+ * @param {string} branch
+ * @param {Iterable<string>} [secrets]
+ * @returns {Promise<{base: string, count: number}|null>} null when nothing is outgoing.
+ */
+async function outgoingRange(runner, path, branch, secrets) {
+  if (!branch) return null;
+  // Does the branch track an upstream, and does that ref exist locally?
+  const upstream = await runner.run(
+    ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'],
+    { cwd: path, allowFailure: true, secrets },
+  );
+  const upstreamRef = String(upstream.stdout || '').trim();
+  let base = '';
+  if (upstream.code === 0 && upstreamRef !== '') {
+    const resolved = await runner.run(['rev-parse', upstreamRef], {
+      cwd: path, allowFailure: true, secrets,
+    });
+    if (resolved.code === 0) base = String(resolved.stdout || '').trim();
+  } else {
+    // No upstream: fall back to the matching origin/ ref, which is what the
+    // plugin's own push would update.
+    const remoteRef = 'refs/remotes/origin/' + branch;
+    const resolved = await runner.run(['rev-parse', '--verify', '--quiet', remoteRef], {
+      cwd: path, allowFailure: true, secrets,
+    });
+    if (resolved.code === 0) base = String(resolved.stdout || '').trim();
+  }
+
+  // No base at all means this is the FIRST push of a branch: every commit in
+  // the history is outgoing, so diff against the empty tree.
+  const from = base !== '' ? base : EMPTY_TREE;
+  const count = await runner.run(['rev-list', '--count', from + '..HEAD'], {
+    cwd: path, allowFailure: true, secrets,
+  });
+  const n = Number(String(count.stdout || '0').trim());
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return { base: from, count: n };
+}
+
+/** The git empty-tree object, used as the base of a branch's first push. */
+const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
+
+/**
+ * Collect the changes that a push would send, for review.
+ *
+ * Same return shape as collectReviewChanges so callers (and the prompt
+ * builder) do not care where the text came from.
+ *
+ * @param {import('./git.js').GitRunner} runner
+ * @param {string} path
+ * @param {object} options
+ * @returns {Promise<object|null>}
+ */
+async function collectOutgoingChanges(runner, path, options = {}) {
+  const branch = await runner.currentBranch(path).catch(() => null);
+  const range = await outgoingRange(runner, path, branch, options.secrets);
+  if (!range) return null;
+
+  const maxFiles = Number.isFinite(options.maxFiles) ? Math.max(1, Math.trunc(options.maxFiles)) : 60;
+  const numstat = await runner.run(
+    ['diff', '--numstat', range.base, 'HEAD'],
+    { cwd: path, allowFailure: true, secrets: options.secrets },
+  );
+  const rows = String(numstat.stdout || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .map((line) => {
+      const [add, del, ...rest] = line.split('\t');
+      return {
+        path: rest.join('\t'),
+        additions: Number(add) || 0,
+        deletions: Number(del) || 0,
+        binary: add === '-' || del === '-',
+      };
+    });
+
+  const files = [];
+  const chunks = [];
+  const patchParts = [];
+  let budget = MAX_PATCH_CHARS;
+  let truncated = false;
+
+  for (const row of rows) {
+    if (files.length >= maxFiles || budget <= 0) { truncated = true; break; }
+    if (row.binary) {
+      files.push({ path: row.path, additions: 0, deletions: 0, skipped: '二进制文件，未送审' });
+      continue;
+    }
+    // A rename shows the full path pair; git accepts either side.
+    const patch = await runner.run(
+      ['diff', '--no-color', '--unified=3', range.base, 'HEAD', '--', row.path],
+      { cwd: path, allowFailure: true, secrets: options.secrets },
+    );
+    const text = String(patch.stdout || '');
+    if (text === '') continue;
+    const clipped = text.length > budget ? text.slice(0, budget) : text;
+    if (clipped.length < text.length) truncated = true;
+    budget -= clipped.length;
+    files.push({ path: row.path, additions: row.additions, deletions: row.deletions });
+    chunks.push({ path: row.path, text: clipped });
+    patchParts.push(clipped);
+  }
+
+  if (files.length === 0) return null;
+  return {
+    files,
+    chunks,
+    patch: patchParts.join('\n'),
+    truncated,
+    // Lets the UI and the tool say what was actually examined.
+    scope: 'outgoing',
+    range,
+  };
+}
+
 /**
  * Build a unified, human-readable representation of the changes to review.
  *
@@ -319,11 +441,21 @@ export async function collectReviewChanges(runner, path, options = {}) {
     chunks.push({ path: entry.path, text: slice });
   }
 
+  // Nothing in the working tree, but there may still be commits waiting to go
+  // out. Reviewing "what a push would send" is the whole point of the feature,
+  // so falling back here is what makes the clean-tree case safe instead of a
+  // false all-clear.
+  if (files.length === 0 && options.includeOutgoing !== false) {
+    const outgoing = await collectOutgoingChanges(runner, path, options);
+    if (outgoing) return outgoing;
+  }
+
   return {
     files,
     chunks,
     patch: chunks.map((c) => c.text).join('\n'),
     truncated,
+    scope: 'working',
   };
 }
 

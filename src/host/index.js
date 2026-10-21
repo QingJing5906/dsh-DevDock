@@ -2008,6 +2008,8 @@ export class GithubLinkHost extends ServiceClass {
             effort: result.effort === undefined || result.effort === null
               ? null
               : String(result.effort),
+            scope: result.scope === 'outgoing' ? 'outgoing' : 'working',
+            outgoingCommits: Number(result.outgoingCommits) || 0,
             files: result.files.map((entry) => String(entry.path)),
             findings: result.findings.map((finding) => ({
               severity: String(finding.severity ?? ''),
@@ -2395,6 +2397,11 @@ export class GithubLinkHost extends ServiceClass {
       usage,
       degraded,
       truncated: changes.truncated,
+      // "working" = uncommitted changes; "outgoing" = the commits a push
+      // would send. The two are different questions and the panel says which
+      // one was answered, so a clean result is never mistaken for the other.
+      scope: changes.scope === 'outgoing' ? 'outgoing' : 'working',
+      outgoingCommits: changes.range ? changes.range.count : 0,
     };
   }
 
