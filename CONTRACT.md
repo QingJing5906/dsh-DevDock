@@ -214,6 +214,22 @@ Commit = {
 
 记忆持久化：状态文档新增 `pushMemory` 表，键 `<repoRoot>|<branch>`。路径需规范化（统一分隔符、盘符小写），避免同一仓库因写法不同丢记忆。
 
+### `/local/push` 的版本来源
+
+`POST /local/push` 的 body 除 `branch` / `force` / `remote` / `target` 外，还接受：
+
+```ts
+{
+  source?: string   // 要推送的 ref：分支名、标签名或 40 位 sha
+}
+```
+
+- 省略时等于 `branch`（推当前分支）
+- 指定 sha 或标签时，Host 构造 `<source>:refs/heads/<branch>` 形式的 refspec，
+  因此「推送某个指定版本」不会悄悄退化成推送当前分支
+- 目标分支缺失时先返回 `BAD_REQUEST`，不会发起任何网络请求
+
+
 ## 3c. 仓库管理（弹窗所需的聚合能力）
 
 `GET /repos/manage?owner=&name=` →
@@ -341,12 +357,12 @@ ReviewPreset = {
    本次审查的是哪一类（`working` / `outgoing`），`outgoingCommits` 给出待推送提交数。
 3. **模式规则先行**（不花钱）：Host 先用正则扫一遍已知密钥形态
    （`ghp_[A-Za-z0-9]{36}`、`github_pat_`、`sk-`、`AKIA[0-9A-Z]{16}`、私钥块、
-   `xox[baprs]-`、Bearer 长串），命中即产出 `blocker` 级 finding。
+   `xox[baprs]-`、Bearer 长串、以及 `password` / `token` / `api_key` 等键名后跟长字面量的硬编码密码），命中即产出 `blocker` 级 finding。
    这样即使模型不可用，最危险的一类问题也有答案。
 4. **模型审查**：把选中预设的 prompt + 自定义提示词拼成一次 `llm` 调用，
    要求模型只输出 JSON（`{findings:[],summary:""}`）。解析失败时降级：
    把模型原文放进 `summary` 且 `findings` 为模式规则的结果，不报错。
-5. **模型不可用**（未注册 provider、鉴权失败、网络错误）：返回
+6. **模型不可用**（未注册 provider、鉴权失败、网络错误）：返回
    `{ ok:true, data:{ ..., model: null, findings: <模式规则结果>, summary: '<中文说明>' } }`，
    并在 `degraded: true` 标注；绝不因审查失败阻塞推送。
 5. 令牌等秘密**永不写进 findings**：命中时只保留位置与类型（如 `ghp_…（已隐藏）`）。

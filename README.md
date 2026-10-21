@@ -111,7 +111,7 @@ dsh plugin --profile desktop add "<插件目录>\dsh-push"
 git clone https://github.com/QingJing5906/dsh-push.git
 cd dsh-push
 npm install          # 仅测试需要，插件本身零运行时依赖
-npm test             # 9 组测试 + 可达性审计
+npm test             # 11 组测试 + 可达性审计
 ```
 
 安装完成后：
@@ -171,7 +171,7 @@ dsh-push/
 │   ├── review.js       # 规则扫描 + 模型审查
 │   └── store.js        # 单文档原子状态（账号、设置、推送记忆、审查预设）
 ├── locale/             # zh / en
-├── tests/              # 9 组测试 + 可达性审计
+├── tests/              # 11 组测试 + 可达性审计
 └── CONTRACT.md         # Host↔Client 接口契约
 ```
 
@@ -184,7 +184,7 @@ dsh-push/
 ## 开发
 
 ```powershell
-npm test              # 9 组测试 + 可达性审计
+npm test              # 11 组测试 + 可达性审计
 npm run test:refspec  # 推送 refspec 行为（需要 git 可执行）
 ```
 

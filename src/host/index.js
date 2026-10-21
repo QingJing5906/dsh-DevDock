@@ -2348,6 +2348,22 @@ export class GithubLinkHost extends ServiceClass {
     promptParts.push('## 差异');
     promptParts.push(changes.patch === '' ? '（没有可审查的改动）' : changes.patch);
 
+    /* What the model is looking at, and — just as important — what it is
+     * NOT looking at. Without this a size-truncated patch reads as "these
+     * files are missing from the project", which is a false alarm on exactly
+     * the release review that matters most. */
+    promptParts.splice(2, 0, '## 审查范围');
+    promptParts.splice(3, 0, changes.scope === 'outgoing'
+      ? `当前分支有 ${changes.range ? changes.range.count : '若干'} 个提交尚未推送，本次审查的是它们相对远端的差异。`
+      : '本次审查的是工作区中尚未提交的改动。');
+    promptParts.splice(4, 0, '注意：文件列表只包含本次改动涉及的文件。未出现在列表中的文件属于仓库既有内容，' +
+      '不代表它们不存在、未提交或不随包发布——不要据此推断项目缺少文件。');
+
+    if (changes.truncated === true) {
+      promptParts.splice(5, 0, '严重提示：本次差异因体积限制被截断，你看到的内容并不完整。' +
+        '不要因为某个改动看起来缺失就断定功能不完整，只针对你实际看到的内容报告问题。');
+    }
+
     let modelFindings = [];
     let summary = '';
     let usage;

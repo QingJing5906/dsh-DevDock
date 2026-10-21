@@ -186,8 +186,8 @@ export const GITHUB_HTTPS_USERNAME = 'x-access-token';
 const TLS_FAILURE = /server certificate verification failed|SSL certificate problem|self[- ]signed certificate|certificate has expired|certificate verify failed/i;
 
 /**
- * The per-invocation `-c` overrides that select a credential for a network
- * command, WITHOUT writing anything to disk.
+ * The per-invocation environment that selects a credential for a network
+ * command, WITHOUT writing anything to disk and WITHOUT touching argv.
  *
  * `credential.helper=` clears every configured helper for THIS command only,
  * so git cannot quietly use (or write) a stored credential; the extraheader is
@@ -206,7 +206,10 @@ const TLS_FAILURE = /server certificate verification failed|SSL certificate prob
  *
  * @param {string|undefined} token the active account's token.
  * @param {{username?: string}} [options]
- * @returns {string[]} flattened `-c key=value` pairs.
+ * @returns {Record<string, string>} a CHILD-PROCESS ENVIRONMENT, not an argv
+ *   fragment: the credential travels as GIT_CONFIG_KEY_n / GIT_CONFIG_VALUE_n
+ *   so it never appears in a process command line. Do not "fix" this by
+ *   turning the return value back into `-c` arguments.
  */
 export function authEnv(token, options = {}) {
   const base = { GIT_TERMINAL_PROMPT: '0' };

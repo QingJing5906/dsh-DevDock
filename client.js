@@ -3975,9 +3975,17 @@ window.__ModuleLoader__.load({
       // Cards need each repo's language mix, which the list payload does not
       // carry. Without this, every card bar on the settings page stayed in the
       // empty state while the README promised a proportion bar.
+      // The language cache lives outside React, so filling it does not
+      // repaint anything by itself. Bump a counter when the fetch settles;
+      // the re-render then picks the data up through languageOf().
+      const [, bumpLang] = useState(0);
       useEffect(() => {
-        if (repos.length === 0) return;
-        prefetchLanguages(ctx, repos);
+        if (repos.length === 0) return undefined;
+        let live = true;
+        prefetchLanguages(ctx, repos).then(() => {
+          if (live) bumpLang((n) => n + 1);
+        });
+        return () => { live = false; };
       }, [ctx, repos]);
 
       const runSearch = () => {
@@ -4756,9 +4764,17 @@ window.__ModuleLoader__.load({
       useEffect(() => { loadState(); loadRepos(1, ''); }, [loadState, loadRepos]);
 
       // Cards on this page need the language mix as well.
+      // The language cache lives outside React, so filling it does not
+      // repaint anything by itself. Bump a counter when the fetch settles;
+      // the re-render then picks the data up through languageOf().
+      const [, bumpLang] = useState(0);
       useEffect(() => {
-        if (repos.length === 0) return;
-        prefetchLanguages(ctx, repos);
+        if (repos.length === 0) return undefined;
+        let live = true;
+        prefetchLanguages(ctx, repos).then(() => {
+          if (live) bumpLang((n) => n + 1);
+        });
+        return () => { live = false; };
       }, [ctx, repos]);
 
       const runSearch = () => {
