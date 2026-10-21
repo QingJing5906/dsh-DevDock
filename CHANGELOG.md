@@ -46,7 +46,7 @@
 
 ### 安全
 
-- Token 仅存于 `%DSH_HOME%\push\state.json`（`0600`），不进入 HTTP 响应、日志、git 回显或工具结果
+- Token 仅存于 `%DSH_HOME%\push\state.json`：POSIX 以 `0600` 写入，Windows 追加 `icacls` 限制为当前用户；不进入 HTTP 响应、日志、git 回显或工具结果
 - 推送凭据通过子进程环境注入，**既不写入 `.git/config`，也不出现在命令行**
 - 规则扫描命中的密钥原文永不外泄；PEM 私钥块与占位符分别处理（后者不误报）
 

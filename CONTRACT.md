@@ -362,10 +362,10 @@ ReviewPreset = {
 4. **模型审查**：把选中预设的 prompt + 自定义提示词拼成一次 `llm` 调用，
    要求模型只输出 JSON（`{findings:[],summary:""}`）。解析失败时降级：
    把模型原文放进 `summary` 且 `findings` 为模式规则的结果，不报错。
+5. 令牌等秘密**永不写进 findings**：命中时只保留位置与类型（如 `ghp_…（已隐藏）`）。
 6. **模型不可用**（未注册 provider、鉴权失败、网络错误）：返回
    `{ ok:true, data:{ ..., model: null, findings: <模式规则结果>, summary: '<中文说明>' } }`，
    并在 `degraded: true` 标注；绝不因审查失败阻塞推送。
-5. 令牌等秘密**永不写进 findings**：命中时只保留位置与类型（如 `ghp_…（已隐藏）`）。
 
 ### 模型与强度候选
 

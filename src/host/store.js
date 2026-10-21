@@ -21,6 +21,7 @@
  */
 
 import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -345,6 +346,38 @@ function normalizeState(raw) {
  * hammer the disk). Writes are serialized through one promise chain so two
  * concurrent mutations can never interleave their read-modify-write.
  */
+/**
+ * Restrict a secret-bearing file to the current user.
+ *
+ * POSIX honours `mode: 0o600` directly. Windows does not: NTFS uses ACLs and
+ * Node's mode is mostly ignored, so the file would only be as private as the
+ * ACL it inherits. Inheriting from %USERPROFILE% is fine; inheriting from a
+ * shared directory is not. `icacls` is therefore applied explicitly, and any
+ * failure is ignored — the write itself already succeeded.
+ *
+ * @param {string} target absolute path of the written file.
+ * @returns {Promise<void>}
+ */
+async function hardenPermissions(target) {
+  if (process.platform !== 'win32') return;
+  const user = process.env.USERNAME;
+  if (typeof user !== 'string' || user === '') return;
+  try {
+    const child = spawn(
+      'icacls',
+      // Remove inherited entries, then grant only the current user full control.
+      [target, '/inheritance:r', '/grant:r', `${user}:F`],
+      { windowsHide: true, stdio: 'ignore' },
+    );
+    await new Promise((resolve) => {
+      child.on('error', resolve);
+      child.on('exit', resolve);
+    });
+  } catch {
+    // best effort: a hardened file is a bonus, not a requirement for the write
+  }
+}
+
 export class GithubLinkStore {
   /** @type {string} absolute directory holding the state document. */
   #dir;
@@ -450,6 +483,8 @@ export class GithubLinkStore {
       await chmod(temp, 0o600).catch(() => {});
     }
     await rename(temp, this.#file);
+    // Windows ignores the mode above; make the ACL explicit instead.
+    await hardenPermissions(this.#file);
     this.#cache = normalized;
     return normalized;
   }

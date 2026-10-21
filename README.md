@@ -149,7 +149,9 @@ npm test             # 11 组测试 + 可达性审计
 
 ## 安全
 
-- Token 只保存在 `%DSH_HOME%\push\state.json`（Windows 下为 `C:\Users\<你>\.dsh\push\state.json`），文件权限 `0600`
+- Token 只保存在 `%DSH_HOME%\push\state.json`（Windows 下为 `C:\Users\<你>\.dsh\push\state.json`）
+  - POSIX 系统以 `0600` 写入
+  - Windows 忽略 POSIX 权限位，因此写入后额外用 `icacls` 去除继承并只授权当前用户；两者都是尽力而为，真正的边界仍是该目录自身的 ACL
 - Token **永不**出现在 HTTP 响应、日志、git 命令回显或工具结果中
 - 推送通过一次性 `http.extraheader` 注入，**不写入** `.git/config`；每此调用都是独立注入，不依赖全局凭据助手
 - 所有错误信息在返回前都会经过脱敏（任意认证方案、`ghp_` / `github_pat_` 形态、私钥块）
