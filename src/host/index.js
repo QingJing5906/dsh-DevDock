@@ -704,6 +704,12 @@ export class GithubLinkHost extends ServiceClass {
     }
     const result = await updateRepo({ token: account.token, owner, name, patch });
     await this.#touch(account.id);
+    // A topics-only change issues no PATCH, so there is no repository payload;
+    // refetch it so every caller keeps receiving a complete repo object.
+    if (!result.repo) {
+      const refreshed = await fetchRepoDetail({ token: account.token, owner, name });
+      return { repo: refreshed.repo, topics: result.topics };
+    }
     return result;
   }
 

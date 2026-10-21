@@ -22,7 +22,8 @@
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
-    "CONTRACT.md"
+    "CONTRACT.md",
+    "PUBLISHING.md"
   ],
   "engines": {
     "node": ">=20"

@@ -100,6 +100,24 @@ const check = (label, ok, detail) => checks.push({ label, ok: Boolean(ok), detai
   check('asset feedback is rendered', client.includes('actionNotice ? h('));
 }
 
+/* ---- 7. topics use their own endpoint, never the repo PATCH --------- */
+{
+  const github = readFileSync('src/host/github.js', 'utf8');
+  const code = github
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+  // GitHub ignores `topics` in PATCH /repos/{o}/{n}: sending it there returned
+  // 200 and changed nothing, which looked like a successful save.
+  check('a dedicated topics call exists', github.includes('export async function setTopics'));
+  check('it targets the /topics endpoint', code.includes("'/topics'"));
+  check('topics are NOT put in the repository PATCH body',
+    !code.includes('body.topics ='));
+  check('updateRepo delegates topics to it', code.includes('if (wantsTopics)'));
+  // The refetch lives in the service, not the client module.
+  check('a topics-only update still returns a full repo',
+    host.includes('const refreshed = await fetchRepoDetail'));
+}
+
 let failed = 0;
 for (const c of checks) {
   if (!c.ok) failed += 1;

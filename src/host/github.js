@@ -1554,25 +1554,45 @@ export async function updateRepo(options) {
   if (typeof patch.defaultBranch === 'string' && patch.defaultBranch !== '') {
     body.default_branch = patch.defaultBranch;
   }
-  if (Array.isArray(patch.topics)) {
-    body.topics = patch.topics.filter((topic) => typeof topic === 'string' && topic.trim() !== '');
-  }
-  if (Object.keys(body).length === 0) {
+  // Deliberately NOT added to `body`: a PATCH ignores topics entirely.
+  // They are written through the dedicated endpoint below.
+  const wantsTopics = Array.isArray(patch.topics);
+  if (Object.keys(body).length === 0 && !wantsTopics) {
     throw new GithubError('BAD_REQUEST', '没有需要修改的字段');
   }
-  const { json } = await api({
-    method: 'PATCH',
-    url: repoPath(options.owner, options.name),
-    token: options.token,
-    timeoutMs: options.timeoutMs,
-    action: '修改仓库信息',
-    body,
-  });
-  const repo = mapRepo(json);
-  return {
-    repo,
-    topics: Array.isArray(json?.topics) ? json.topics.filter((topic) => typeof topic === 'string') : [],
-  };
+  // A topics-only update has an empty PATCH body; skip the request entirely
+  // rather than send {} (which GitHub would reject as no-op).
+  let json = null;
+  if (Object.keys(body).length > 0) {
+    const response = await api({
+      method: 'PATCH',
+      url: repoPath(options.owner, options.name),
+      token: options.token,
+      timeoutMs: options.timeoutMs,
+      action: '修改仓库信息',
+      body,
+    });
+    json = response.json;
+  }
+
+  // Topics are a separate resource; the PATCH above cannot carry them.
+  let topics = Array.isArray(json?.topics)
+    ? json.topics.filter((topic) => typeof topic === 'string')
+    : [];
+  if (wantsTopics) {
+    const written = await setTopics({
+      token: options.token,
+      owner: options.owner,
+      name: options.name,
+      topics: patch.topics,
+      timeoutMs: options.timeoutMs,
+    });
+    topics = written.topics;
+  }
+
+  // With no PATCH issued there is no repository payload; read the topics we
+  // just wrote back and let the caller refetch the rest.
+  return { repo: json ? mapRepo(json) : null, topics };
 }
 
 /**
@@ -1803,6 +1823,45 @@ export async function removeCollaborator(options) {
     );
   }
   throw responseError(response, `移除协作者 ${user}`);
+}
+
+/**
+ * Replace the topic list of a repository.
+ *
+ * Topics are NOT part of the repository PATCH: GitHub exposes them on
+ * `PUT /repos/{owner}/{repo}/topics` with a `{ names: [...] }` body, and
+ * silently ignores `topics` in a PATCH. Sending them with the PATCH looked
+ * like it worked (200 OK) and changed nothing.
+ *
+ * @param {object} options
+ * @param {string} options.token
+ * @param {string} options.owner
+ * @param {string} options.name
+ * @param {string[]} options.topics
+ * @returns {Promise<{topics: string[]}>}
+ */
+export async function setTopics(options) {
+  const owner = String(options.owner ?? '').trim();
+  const name = String(options.name ?? '').trim();
+  if (owner === '' || name === '') throw new GithubError('BAD_REQUEST', '缺少仓库的 owner 或名称');
+  const names = Array.isArray(options.topics)
+    ? options.topics
+      .map((topic) => String(topic).trim().toLowerCase())
+      .filter((topic) => topic !== '')
+    : [];
+  const { json } = await api({
+    method: 'PUT',
+    url: repoPath(owner, name) + '/topics',
+    token: options.token,
+    timeoutMs: options.timeoutMs,
+    action: '设置 topics',
+    body: { names },
+  });
+  return {
+    topics: Array.isArray(json?.names)
+      ? json.names.filter((topic) => typeof topic === 'string')
+      : names,
+  };
 }
 
 /**
