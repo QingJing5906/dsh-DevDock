@@ -794,9 +794,12 @@ export class GithubLinkHost extends ServiceClass {
     const name = requireString(body, 'name', ' name');
     const id = requireString(body, 'id', ' release id');
     const patch = {};
-    if (body.name !== undefined) {
-      if (typeof body.name !== 'string') throw httpError(400, 'BAD_REQUEST', 'name 必须是字符串');
-      patch.name = body.name;
+    // `body.name` is the REPOSITORY name (used above), so the release title
+    // must arrive under its own key. Accepting `name` here made it
+    // impossible to set a title without corrupting the repository path.
+    const releaseName = optionalString(body.releaseName) ?? optionalString(body.title);
+    if (releaseName !== undefined) {
+      patch.name = releaseName;
     }
     if (body.body !== undefined) {
       if (typeof body.body !== 'string') throw httpError(400, 'BAD_REQUEST', 'body 必须是字符串');
@@ -810,7 +813,18 @@ export class GithubLinkHost extends ServiceClass {
       if (typeof body.prerelease !== 'boolean') throw httpError(400, 'BAD_REQUEST', 'prerelease 必须是布尔值');
       patch.prerelease = body.prerelease;
     }
-    const result = await updateRelease({ token: account.token, owner, name, id, ...patch });
+    // Never spread `patch` into an object that already has `name`: the spread
+    // overwrote the repository name with the release title.
+    const result = await updateRelease({
+      token: account.token,
+      owner,
+      repo: name,
+      id,
+      title: patch.name,
+      body: patch.body,
+      draft: patch.draft,
+      prerelease: patch.prerelease,
+    });
     await this.#touch(account.id);
     return result;
   }

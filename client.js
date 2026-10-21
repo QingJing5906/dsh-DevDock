@@ -2819,9 +2819,12 @@ window.__ModuleLoader__.load({
         if (releaseDraft.id) {
           await mutate('/repos/release/update', {
             owner,
+            // `name` is the REPOSITORY name and `releaseName` is the release
+            // title. They used to share the key `name`, and the duplicate
+            // silently replaced the repo name, so every save 404ed.
             name,
             id: releaseDraft.id,
-            name: releaseDraft.name,
+            releaseName: releaseDraft.name,
             body: releaseDraft.body,
             draft: releaseDraft.draft,
             prerelease: releaseDraft.prerelease,

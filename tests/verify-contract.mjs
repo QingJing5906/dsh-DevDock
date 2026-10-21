@@ -118,6 +118,35 @@ const check = (label, ok, detail) => checks.push({ label, ok: Boolean(ok), detai
     host.includes('const refreshed = await fetchRepoDetail'));
 }
 
+/* ---- 8. release edit must not collide on `name` --------------------- */
+{
+  // `name` is the repository; the release title needs its own key. A duplicate
+  // key in the payload object silently replaced the repo name, so every save of
+  // an existing release hit a non-existent repository.
+  const releaseCall = client.slice(
+    client.indexOf("mutate('/repos/release/update'"),
+    client.indexOf("}, { label: t('releaseSave') });") + 40,
+  );
+  const nameKeys = (releaseCall.match(/^\s{12}name,/gm) || []).length;
+  check('the release update payload has exactly one `name` key', nameKeys === 1, `${nameKeys}`);
+  check('the release title travels as releaseName',
+    releaseCall.includes('releaseName: releaseDraft.name'));
+  check('the host reads releaseName', host.includes('optionalString(body.releaseName)'));
+  check('CONTRACT documents releaseName', contract.includes('releaseName'));
+
+  // The same collision existed one layer down: spreading the patch into an
+  // object that already had `name` put the release TITLE into the repo path.
+  check('the service never spreads the patch over the repo name',
+    !host.includes('updateRelease({ token: account.token, owner, name, id, ...patch })'));
+  check('updateRelease takes the repository as `repo`',
+    host.includes('repo: name,'));
+  check('updateRelease takes the title as `title`',
+    host.includes('title: patch.name,'));
+  const githubSrc = readFileSync('src/host/github.js', 'utf8');
+  check('the PATCH URL uses the repository, not the title',
+    githubSrc.includes('repoPath(options.owner, options.repo)'));
+}
+
 let failed = 0;
 for (const c of checks) {
   if (!c.ok) failed += 1;

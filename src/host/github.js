@@ -1749,16 +1749,18 @@ export async function updateRelease(options) {
   const id = String(options.id ?? '').trim();
   if (id === '') throw new GithubError('BAD_REQUEST', '缺少 release id');
   const patch = {};
-  // `name` and `body` are nullable ON THE WIRE: an empty string here is the
+  // `title` is the RELEASE title; `repo` is the repository. They were once both
+  // `name`, and the service's spread silently put the title into the repo path.
+  // `title` and `body` are nullable ON THE WIRE: an empty string here is the
   // user clearing the field, so it is sent rather than skipped.
-  if (typeof options.name === 'string') patch.name = options.name;
+  if (typeof options.title === 'string') patch.name = options.title;
   if (typeof options.body === 'string') patch.body = options.body;
   if (typeof options.draft === 'boolean') patch.draft = options.draft;
   if (typeof options.prerelease === 'boolean') patch.prerelease = options.prerelease;
   if (Object.keys(patch).length === 0) throw new GithubError('BAD_REQUEST', '没有需要修改的字段');
   const { json } = await api({
     method: 'PATCH',
-    url: `${repoPath(options.owner, options.name)}/releases/${encodeURIComponent(id)}`,
+    url: `${repoPath(options.owner, options.repo)}/releases/${encodeURIComponent(id)}`,
     token: options.token,
     timeoutMs: options.timeoutMs,
     action: '修改 release',

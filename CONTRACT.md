@@ -401,6 +401,25 @@ ReviewPreset = {
 - `POST /releases/asset/delete` body：`{ owner, name, assetId }` → `{ deleted: true }`
   - 404 也视为已删除（幂等）
 
+### 修改发布
+
+- `POST /repos/release/update` body：
+```ts
+{
+  owner: string,
+  name: string,         // 仓库名
+  id: string,           // 发布 id
+  releaseName?: string, // 发布标题（不要用 name，那是仓库名）
+  body?: string,
+  draft?: boolean,
+  prerelease?: boolean
+}
+```
+
+> `name` 专指仓库名。发布标题必须用 `releaseName`——早期两者共用 `name`，
+> 对象字面量里重复的键让仓库名被标题覆盖，保存已有发布必然 404。
+
+
 ### 发布对象
 
 `Release` 额外携带附件列表，供界面展示与删除：
