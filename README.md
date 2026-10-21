@@ -91,10 +91,14 @@ create_repo · release · review
 
 ## 安装
 
+> **命名说明**：npm 包名是 `dsh-harness-push`，GitHub 仓库名是 `dsh-push`。
+> 两者不同是因为 npm 上的 `dsh-push` 已被另一个用途无关的插件占用。
+> 插件的内部标识（工具名 `github_link`、路由 `/api/push/*`、设置页与侧边栏入口）不受影响。
+
 ### 从 npm 安装（推荐）
 
 ```powershell
-dsh plugin --profile desktop add dsh-push
+dsh plugin --profile desktop add dsh-harness-push
 ```
 
 ### 从本地目录安装

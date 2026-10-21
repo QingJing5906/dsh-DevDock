@@ -91,6 +91,13 @@ try {
     const packed = JSON.parse((await readFile(path.join(root, 'package.json'), 'utf8')).replace(/^\uFEFF/, ''));
     check('the package is not private', packed.private !== true);
     check('the version is a real one', /^\d+\.\d+\.\d+/.test(String(packed.version)), packed.version);
+
+    /* The published name must be the one that is actually free on npm. Plain
+     * `dsh-push` is taken by an unrelated plugin, so publishing under it would
+     * fail — and a silent rename back would break `dsh plugin add`. */
+    check('the published name is dsh-harness-push', packed.name === 'dsh-harness-push', packed.name);
+    const local = JSON.parse((await readFile(path.join(pkgDir, 'package.json'), 'utf8')).replace(/^\uFEFF/, ''));
+    check('the packed name matches the checkout', packed.name === local.name, `${packed.name} vs ${local.name}`);
     check('dsh.bundle.patch resolves inside the package', (() => {
       try {
         readFile(packagePath(root, packed.dsh.bundle.patch));
