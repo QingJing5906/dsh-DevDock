@@ -1,0 +1,7 @@
+# dsh-push bundle patch.
+#
+# One row mounts the Host half. The browser half joins the Client module graph
+# through `dsh.client` + the "./client" export, so no second row is needed.
+- insert:
+    - id: push
+      name: dsh-push

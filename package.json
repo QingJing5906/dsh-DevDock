@@ -1,0 +1,69 @@
+{
+  "name": "dsh-push",
+  "version": "1.0.0",
+  "description": "DeepSeek Harness 的 GitHub 与 Git 管理插件：多账号登录切换、仓库浏览与管理、工作区版本树、一键推送、推送前 Agent 审查。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "src",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "CONTRACT.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "github",
+    "git",
+    "push",
+    "version-control",
+    "code-review",
+    "agent",
+    "release"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QingJing5906/dsh-push.git"
+  },
+  "homepage": "https://github.com/QingJing5906/dsh-push#readme",
+  "bugs": {
+    "url": "https://github.com/QingJing5906/dsh-push/issues"
+  },
+  "author": "QingJing5906",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node tests/verify-client.mjs && node tests/verify-cards.mjs && node tests/verify-tool-surface.mjs && node tests/verify-errors.mjs && node tests/verify-push-memory.mjs && node tests/verify-delete-semantics.mjs && node tests/verify-review-rules.mjs && node tests/verify-review-store.mjs && node tests/audit-reachability.mjs",
+    "test:refspec": "powershell -ExecutionPolicy Bypass -File tests/run-refspec.ps1",
+    "prepublishOnly": "npm test"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  }
+}

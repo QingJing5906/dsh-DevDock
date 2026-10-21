@@ -1,0 +1,19 @@
+# 依赖（插件本身零运行时依赖，仅测试/打包用到）
+node_modules/
+
+# 打包产物
+*.tgz
+dist/
+
+# 编辑器与系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日志与临时文件
+*.log
+npm-debug.log*
+.env
+.env.*
