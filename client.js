@@ -114,7 +114,8 @@ window.__ModuleLoader__.load({
         sideReposTruncated: '仅显示最近 {n} 个仓库',
 
         /* settings — connection */
-        connSection: '连接',
+        // 齿轮里现在既有连接参数也有信息密度，叫「设置」才找得到。
+      connSection: '设置',
         oauthClientId: 'OAuth Client ID',
         oauthClientIdHint: '留空则无法使用设备码登录',
         gitPath: 'Git 路径',
@@ -275,7 +276,7 @@ window.__ModuleLoader__.load({
         pickerNoTarget: '未选择推送目标，将使用默认远端',
 
         /* workspace tab */
-        tabTitle: 'Push',
+        tabTitle: 'GitHub',
       viewList: "列表",
       viewCard: "卡片",
       viewSizeSmall: "小",
@@ -579,7 +580,7 @@ window.__ModuleLoader__.load({
         openAll: 'View all',
         sideReposTruncated: 'Showing the {n} most recent repositories',
 
-        connSection: 'Connection',
+        connSection: 'Settings',
         oauthClientId: 'OAuth Client ID',
         oauthClientIdHint: 'Leave empty to disable device sign-in',
         gitPath: 'Git path',
@@ -736,7 +737,7 @@ window.__ModuleLoader__.load({
         pickerMemory: 'Last pushed to {name}',
         pickerNoTarget: 'No target picked — the default remote will be used',
 
-        tabTitle: 'Push',
+        tabTitle: 'GitHub',
       viewList: "List",
       viewCard: "Cards",
       viewSizeSmall: "Small",
@@ -4606,32 +4607,6 @@ window.__ModuleLoader__.load({
       }
 
       return h('div', { className: 'dsh-push-root dsh-push-settings', style: densityStyle(density) },
-        /* ── 个性化：信息密度 ──
-         * 放在最上面，因为它是用户进来只想调一次就永远不管的开关。
-         * 滑杆是无极的，三个按钮只是快捷键。 */
-        h('div', { className: 'dsh-push-group' },
-          h('div', { className: 'dsh-push-group-head' },
-            h('span', null, t('densityTitle')),
-            h('span', { className: 'dsh-push-density-value' }, density + '%')),
-          h('div', { className: 'dsh-push-density-controls' },
-            h('input', {
-              className: 'dsh-push-density-slider',
-              type: 'range',
-              min: DENSITY_MIN,
-              max: DENSITY_MAX,
-              step: 1,
-              value: density,
-              'aria-label': t('densityTitle'),
-              onChange: (event) => setDensity(Number(event.target.value)),
-            }),
-            h('div', { className: 'dsh-push-density-presets' },
-              DENSITY_PRESETS.map((preset) => h('button', {
-                key: preset.id,
-                type: 'button',
-                className: 'dsh-push-density-preset' + (density === preset.value ? ' is-on' : ''),
-                onClick: () => setDensity(preset.value),
-              }, t('density_' + preset.id)))),
-          h('div', { className: 'dsh-push-row-hint' }, t('densityHint')))),
         /* ── accounts ── */
         h('div', { className: 'dsh-push-group' },
           h('div', { className: 'dsh-push-group-head' },
@@ -4728,6 +4703,29 @@ window.__ModuleLoader__.load({
               label: t('showPrivate'),
               onChange: (next) => setDraft(Object.assign({}, draft, { showPrivate: next })),
             })),
+
+          /* 信息密度：同样属于全局设置，和上面的几项一起收在齿轮里。
+           * 滑杆无级（85%–125%），右边三个按钮只是常用档的快捷方式。 */
+          h(Row, { title: t('densityTitle'), hint: t('densityHint') },
+            h('div', { className: 'dsh-push-density-controls' },
+              h('input', {
+                className: 'dsh-push-density-slider',
+                type: 'range',
+                min: DENSITY_MIN,
+                max: DENSITY_MAX,
+                step: 1,
+                value: density,
+                'aria-label': t('densityTitle'),
+                onChange: (event) => setDensity(Number(event.target.value)),
+              }),
+              h('span', { className: 'dsh-push-density-value' }, density + '%'),
+              h('div', { className: 'dsh-push-density-presets' },
+                DENSITY_PRESETS.map((preset) => h('button', {
+                  key: preset.id,
+                  type: 'button',
+                  className: 'dsh-push-density-preset' + (density === preset.value ? ' is-on' : ''),
+                  onClick: () => setDensity(preset.value),
+                }, t('density_' + preset.id)))))),
 
           /* git availability is a machine-wide fact, so it belongs with the
              other global options rather than on the account overview. */
@@ -7906,7 +7904,8 @@ function ReviewDialog(props) {
           name: 'settings.section',
           id: 'push',
           order: 22,
-          label: () => 'Push',
+          // 设置页的品牌入口：这里显示的是套件名，不是某个平台。
+      label: () => 'DevDock',
         }, (props) => h(SettingsSection, Object.assign({}, props, { ctx }))));
       } catch (err) {
         console.error('push: settings.section registration failed', err);
@@ -7924,7 +7923,8 @@ function ReviewDialog(props) {
             name: 'sidebar.panellist',
             id: 'push',
             order: 2,
-            label: () => 'Push',
+            // 侧栏显示当前平台名，而不是一个含义模糊的 Push。
+      label: () => 'GitHub',
           }, (props) => h(SidebarIcon, props));
 
           let offPage = null;
