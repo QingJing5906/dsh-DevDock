@@ -4,4 +4,4 @@
 # through `dsh.client` + the "./client" export, so no second row is needed.
 - insert:
     - id: push
-      name: dsh-push
+      name: dsh-harness-push
