@@ -306,6 +306,11 @@ window.__ModuleLoader__.load({
       tabPickHint: "是否包含在本次提交中",
       rvAgentAsked: "Agent 请求",
       rvAgentAskedHint: "这次审查由智能体发起，需要你确认审查项后才会执行",
+      densityTitle: "信息密度",
+      densityHint: "调整字号与间距，四个界面同时生效；拖动滑杆可无级调节。",
+      density_small: "小",
+      density_medium: "中",
+      density_large: "大",
       rvTitle: "推送前审查",
       rvClose: "关闭",
       rvSettings: "设置",
@@ -762,6 +767,11 @@ window.__ModuleLoader__.load({
       tabPickHint: "Include this file in the next commit",
       rvAgentAsked: "Agent request",
       rvAgentAskedHint: "The agent asked for this review; nothing runs until you confirm the items",
+      densityTitle: "Information density",
+      densityHint: "Scales text and spacing across all four surfaces; drag for continuous adjustment.",
+      density_small: "Small",
+      density_medium: "Medium",
+      density_large: "Large",
       rvTitle: "Pre-push review",
       rvClose: "Close",
       rvSettings: "Settings",
@@ -1790,6 +1800,26 @@ window.__ModuleLoader__.load({
 .dsh-push-rv-badge { font-size: 11px; padding: 0 5px; border-radius: 5px;
   color: var(--dsw-alias-state-error-primary);
   border: 1px solid var(--dsw-alias-state-error-primary); }
+/* ── 信息密度 ─────────────────────────────────────────────────────── */
+.dsh-push-density-controls { display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap; padding: 2px 0 4px; }
+/* 滑杆自己也要跟着缩放，否则文字变大后它显得过细；但不要继承 zoom，
+   它就在被缩放的根容器里，保持原生宽度即可。 */
+.dsh-push-density-slider { flex: 1 1 160px; min-width: 120px; height: 18px;
+  accent-color: var(--dsw-alias-brand-primary); cursor: pointer; }
+.dsh-push-density-presets { display: flex; align-items: center; gap: 4px; }
+.dsh-push-density-preset { font: inherit; font-size: 11px; cursor: pointer;
+  padding: 3px 9px; border-radius: 6px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary); }
+.dsh-push-density-preset:hover { color: var(--dsw-alias-label-primary); }
+.dsh-push-density-preset.is-on { color: var(--dsw-alias-brand-primary);
+  border-color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-bg-layer-2); }
+.dsh-push-density-value { font-size: 11px;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums; }
 /* ── repository cards ─────────────────────────────────────────────── */
 .dsh-push-viewswitch { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .dsh-push-repocards { display: grid; gap: 10px;
@@ -4259,8 +4289,9 @@ window.__ModuleLoader__.load({
     }
 
     function SettingsSection(props) {
-      const ctx = props.ctx;
-      const [state, setState] = useState(null);
+            const ctx = props.ctx;
+      // 字号与间距的全局缩放，四档界面共用同一个值。
+      const [density, setDensity] = useDensity(); const [state, setState] = useState(null);
       const [draft, setDraft] = useState({ oauthClientId: '', gitPath: '', defaultRemote: 'origin', showPrivate: true });
       const [error, setError] = useState('');
       const [busy, setBusy] = useState(false);
@@ -4574,7 +4605,33 @@ window.__ModuleLoader__.load({
         ];
       }
 
-      return h('div', { className: 'dsh-push-root dsh-push-settings' },
+      return h('div', { className: 'dsh-push-root dsh-push-settings', style: densityStyle(density) },
+        /* ── 个性化：信息密度 ──
+         * 放在最上面，因为它是用户进来只想调一次就永远不管的开关。
+         * 滑杆是无极的，三个按钮只是快捷键。 */
+        h('div', { className: 'dsh-push-group' },
+          h('div', { className: 'dsh-push-group-head' },
+            h('span', null, t('densityTitle')),
+            h('span', { className: 'dsh-push-density-value' }, density + '%')),
+          h('div', { className: 'dsh-push-density-controls' },
+            h('input', {
+              className: 'dsh-push-density-slider',
+              type: 'range',
+              min: DENSITY_MIN,
+              max: DENSITY_MAX,
+              step: 1,
+              value: density,
+              'aria-label': t('densityTitle'),
+              onChange: (event) => setDensity(Number(event.target.value)),
+            }),
+            h('div', { className: 'dsh-push-density-presets' },
+              DENSITY_PRESETS.map((preset) => h('button', {
+                key: preset.id,
+                type: 'button',
+                className: 'dsh-push-density-preset' + (density === preset.value ? ' is-on' : ''),
+                onClick: () => setDensity(preset.value),
+              }, t('density_' + preset.id)))),
+          h('div', { className: 'dsh-push-row-hint' }, t('densityHint')))),
         /* ── accounts ── */
         h('div', { className: 'dsh-push-group' },
           h('div', { className: 'dsh-push-group-head' },
@@ -4684,7 +4741,62 @@ window.__ModuleLoader__.load({
 
     /* ───────────── B1. sidebar.panellist icon ───────────────────────────── */
 
-    function SidebarIcon(props) {
+    /* ───────────── 信息密度（个性化：字号 + 间距） ───────────── */
+
+/** 允许的缩放区间。低于 0.85 会挤到看不清，高于 1.25 在小面板里会溢出。 */
+const DENSITY_MIN = 85;
+const DENSITY_MAX = 125;
+const DENSITY_DEFAULT = 100;
+
+/** 三档快捷值，滑杆仍是无极的。 */
+const DENSITY_PRESETS = [
+  { id: 'small', value: 90 },
+  { id: 'medium', value: 100 },
+  { id: 'large', value: 112 },
+];
+
+/** 订阅者：改一处密度，所有已挂载的界面一起变。 */
+const densityListeners = new Set();
+
+/** 读回用户上次的密度，非法值一律回到 100。 */
+function readDensity() {
+  const raw = readViewPref('density', String(DENSITY_DEFAULT));
+  const value = Number.parseInt(raw, 10);
+  if (!Number.isFinite(value)) return DENSITY_DEFAULT;
+  return Math.min(DENSITY_MAX, Math.max(DENSITY_MIN, value));
+}
+
+/** 保存密度并通知所有界面立即重绘。 */
+function writeDensity(value) {
+  const clamped = Math.min(DENSITY_MAX, Math.max(DENSITY_MIN, Math.round(value)));
+  writeViewPref('density', String(clamped));
+  for (const listener of [...densityListeners]) {
+    try { listener(clamped); } catch { /* 订阅者可能已卸载 */ }
+  }
+}
+
+/**
+ * 密度状态。每个界面各自订阅，改设置页的滑杆时侧栏与标签页同时跟随。
+ * @returns {[number, (value: number) => void]}
+ */
+function useDensity() {
+  const [value, setValue] = useState(readDensity);
+  useEffect(() => {
+    const listener = (next) => setValue(next);
+    densityListeners.add(listener);
+    // 挂载时对齐一次：另一个界面可能刚改过。
+    setValue(readDensity());
+    return () => { densityListeners.delete(listener); };
+  }, []);
+  return [value, writeDensity];
+}
+
+/** 把密度折算成根容器的内联样式。 */
+function densityStyle(value) {
+  return { zoom: String(value / 100) };
+}
+
+function SidebarIcon(props) {
       return h('span', {
         className: 'dsh-push-sb-icon',
         'data-active': props && props.active ? 'true' : 'false',
@@ -4694,8 +4806,8 @@ window.__ModuleLoader__.load({
     /* ───────────── B2. main page: remote repositories ───────────────────── */
 
     function ReposPage(props) {
-      const ctx = props.ctx;
-      const [state, setState] = useState(null);
+            const ctx = props.ctx;
+      const [density] = useDensity(); const [state, setState] = useState(null);
       const [repos, setRepos] = useState([]);
       const [query, setQuery] = useState('');
       const [search, setSearch] = useState('');
@@ -4933,7 +5045,7 @@ window.__ModuleLoader__.load({
             : null);
       };
 
-      return h('div', { className: 'dsh-push-root dsh-push-page' },
+      return h('div', { className: 'dsh-push-root dsh-push-page', style: densityStyle(density) },
         h('div', { className: 'dsh-push-page-head' },
           h('span', { className: 'dsh-push-page-title' }, t('pageTitle')),
           h('span', { className: 'dsh-push-page-spacer' }),
@@ -6944,8 +7056,8 @@ function ReviewDialog(props) {
     }
 
     function WorkspaceTab(props) {
-      const ctx = props.ctx;
-      const visible = props.visible !== false;
+            const ctx = props.ctx;
+      const [density] = useDensity(); const visible = props.visible !== false;
       // `repoRoot` is the selected Git repository when `cwd` is a workspace
       // container holding several; it is the path git commands must target,
       // while `cwd` alone would be the folder that merely contains them.
@@ -7313,7 +7425,7 @@ function ReviewDialog(props) {
 
       /* ── no workspace path: nothing can be asked of git without one ── */
       if (!cwd) {
-        return h('div', { className: 'dsh-push-root dsh-push-tab' },
+        return h('div', { className: 'dsh-push-root dsh-push-tab', style: densityStyle(density) },
         reviewDialog,
           h('div', { className: 'dsh-push-tab-head' },
             h('div', { className: 'dsh-push-tab-repo' },
@@ -7328,7 +7440,7 @@ function ReviewDialog(props) {
       /* ── empty state + init form, when the directory is not a repository ── */
       if (status && !status.isRepo) {
         const resolved = (props.scope && (props.scope.repoRoot || props.scope.cwd)) || cwd;
-        return h('div', { className: 'dsh-push-root dsh-push-tab' },
+        return h('div', { className: 'dsh-push-root dsh-push-tab', style: densityStyle(density) },
         reviewDialog,
           h('div', { className: 'dsh-push-tab-head' },
             h('div', { className: 'dsh-push-tab-repo' },
@@ -7385,7 +7497,7 @@ function ReviewDialog(props) {
           onClick: () => setPanel(panel === 'remote' ? '' : 'remote'),
         }, linkedRemote || knownRemotes ? t('remoteChangeCta') : t('remoteLinkCta')));
 
-      return h('div', { className: 'dsh-push-root dsh-push-tab' },
+      return h('div', { className: 'dsh-push-root dsh-push-tab', style: densityStyle(density) },
         reviewDialog,
         /* ── repo line ── */
         h('div', { className: 'dsh-push-tab-head' },
