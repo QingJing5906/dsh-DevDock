@@ -2541,8 +2541,6 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = useState(false);
       const [notice, setNotice] = useState('');
 
-  /* A dialog that opened by itself must say so. */
-  const agentAsked = Boolean(props.pending && props.pending.source === 'agent');
       const [actionError, setActionError] = useState('');
 
       // §设置 draft
@@ -5962,8 +5960,11 @@ function ReviewDialog(props) {
   const configureBody = [
     h('div', { className: 'dsh-push-rv-head', key: 'head' },
       h('span', { className: 'dsh-push-rv-title' }, t('rvTitle')),
-      // A dialog that opened by itself must say why.
-      agentAsked
+      // A dialog that opened by itself must say why. Computed inline on
+      // purpose: a component-local flag was once declared in ANOTHER
+      // component by mistake, and the resulting ReferenceError stopped the
+      // whole sidebar from opening.
+      (props.pending && props.pending.source === 'agent')
         ? h('span', { className: 'dsh-push-rv-agenttag', title: t('rvAgentAskedHint') },
           t('rvAgentAsked'))
         : null,
