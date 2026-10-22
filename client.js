@@ -312,6 +312,17 @@ window.__ModuleLoader__.load({
       density_small: "小",
       density_medium: "中",
       density_large: "大",
+      npmSection: "npm",
+      npmReadOnly: "只读：查看账号与包",
+      npmTokenPlaceholder: "粘贴 npm Granular Access Token",
+      npmAdd: "添加账号",
+      npmCurrent: "当前",
+      npmSwitch: "切换",
+      npmRemove: "移除",
+      npmNoPackages: "还没有读取到包（令牌需要是 read-only 或 read-write）",
+      npmVersionCount: "共 {n} 个版本",
+      npmLatest: "latest",
+      npmDeprecated: "已废弃",
       rvTitle: "推送前审查",
       rvClose: "关闭",
       rvSettings: "设置",
@@ -773,6 +784,17 @@ window.__ModuleLoader__.load({
       density_small: "Small",
       density_medium: "Medium",
       density_large: "Large",
+      npmSection: "npm",
+      npmReadOnly: "Read-only: accounts and packages",
+      npmTokenPlaceholder: "Paste an npm Granular Access Token",
+      npmAdd: "Add account",
+      npmCurrent: "Current",
+      npmSwitch: "Switch",
+      npmRemove: "Remove",
+      npmNoPackages: "No packages read yet (the token needs read access)",
+      npmVersionCount: "{n} versions",
+      npmLatest: "latest",
+      npmDeprecated: "deprecated",
       rvTitle: "Pre-push review",
       rvClose: "Close",
       rvSettings: "Settings",
@@ -1801,6 +1823,11 @@ window.__ModuleLoader__.load({
 .dsh-push-rv-badge { font-size: 11px; padding: 0 5px; border-radius: 5px;
   color: var(--dsw-alias-state-error-primary);
   border: 1px solid var(--dsw-alias-state-error-primary); }
+/* ── npm 包详情 ───────────────────────────────────────────────────── */
+.dsh-push-npm-detail { display: flex; flex-direction: column; gap: 2px;
+  padding: 6px 0 2px; flex-basis: 100%; }
+.dsh-push-npm-version { display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--dsw-alias-label-secondary); }
 /* ── 信息密度 ─────────────────────────────────────────────────────── */
 .dsh-push-density-controls { display: flex; align-items: center; gap: 10px;
   flex-wrap: wrap; padding: 2px 0 4px; }
@@ -4638,6 +4665,8 @@ window.__ModuleLoader__.load({
             }),
           ]
           : null,
+        h(NpmSection, { ctx }),
+
         state && !gitAvailable
           ? h('div', { className: 'dsh-push-error' }, t('errGitMissing'))
           : null,
@@ -4800,6 +4829,187 @@ function SidebarIcon(props) {
         'data-active': props && props.active ? 'true' : 'false',
       }, h(GithubMark, { size: (props && props.size) || 16 }));
     }
+
+    /* ───────────── npm 模块：账号与包（只读） ───────────── */
+
+/**
+ * DevDock 的 npm 模块。
+ *
+ * 只做只读的事：认账号、列自己维护的包、看某个包的版本与 dist-tags。
+ * 刻意不做发布——npm 的发布强制 2FA，非交互场景拿不到 OTP，做一个
+ * "点了没反应"的发布按钮比不做更糟。
+ *
+ * @param {{ctx: object}} props
+ */
+function NpmSection(props) {
+  const ctx = props.ctx;
+  const [accounts, setAccounts] = useState(null);
+  const [packages, setPackages] = useState(null);
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [openName, setOpenName] = useState('');
+  const [detail, setDetail] = useState(null);
+  const aliveRef = useRef(true);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
+
+  const loadAccounts = useCallback(async () => {
+    try {
+      const data = await api(ctx, API + '/npm/accounts');
+      if (aliveRef.current) setAccounts(data || { accounts: [], activeId: null });
+    } catch (err) {
+      if (aliveRef.current) setError(err.message);
+    }
+  }, [ctx]);
+
+  const loadPackages = useCallback(async () => {
+    try {
+      const data = await api(ctx, API + '/npm/packages?size=30');
+      if (aliveRef.current) setPackages(data ? data.items : []);
+    } catch (err) {
+      // 没有登录 npm 是正常状态，不当成错误显示。
+      if (aliveRef.current && err.code !== 'NO_ACCOUNT') {
+        setError(err.message);
+      }
+      if (aliveRef.current) setPackages(null);
+    }
+  }, [ctx]);
+
+  const reload = useCallback(async () => {
+    await loadAccounts();
+    await loadPackages();
+  }, [loadAccounts, loadPackages]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const run = async (label, action) => {
+    setBusy(label);
+    setError('');
+    try {
+      await action();
+      await reload();
+    } catch (err) {
+      if (aliveRef.current) setError(err.message);
+    } finally {
+      if (aliveRef.current) setBusy('');
+    }
+  };
+
+  const addAccount = () => run('add', async () => {
+    const value = String(token || '').trim();
+    if (value === '') return;
+    await api(ctx, API + '/npm/account', { method: 'POST', body: { token: value } });
+    if (aliveRef.current) setToken('');
+  });
+
+  const removeAccount = (id) => run('remove', async () => {
+    await api(ctx, API + '/npm/account/remove', { method: 'POST', body: { id } });
+  });
+
+  const switchAccount = (id) => run('switch', async () => {
+    await api(ctx, API + '/npm/account/active', { method: 'POST', body: { id } });
+  });
+
+  const togglePackage = async (name) => {
+    if (openName === name) { setOpenName(''); setDetail(null); return; }
+    setOpenName(name);
+    setDetail(null);
+    try {
+      const data = await api(ctx, API + '/npm/package?name=' + encodeURIComponent(name));
+      if (aliveRef.current) setDetail(data && data.pkg ? data.pkg : null);
+    } catch (err) {
+      if (aliveRef.current) setError(err.message);
+    }
+  };
+
+  const list = (accounts && accounts.accounts) || [];
+  const activeId = accounts ? accounts.activeId : null;
+
+  /* 版本行与包行各自一个函数：把它们硬塞进 return 里会形成四层嵌套，
+   * 括号一旦写错就是整屏消失，而这里读起来仍然是一行一件事。 */
+  const renderVersion = (row) => h('div', { key: row.version, className: 'dsh-push-npm-version' },
+    h('span', { className: 'dsh-push-mono' }, row.version),
+    row.isLatest ? h('span', { className: 'dsh-push-pill' }, t('npmLatest')) : null,
+    row.deprecated ? h('span', { className: 'dsh-push-pill dsh-push-pill--warn' }, t('npmDeprecated')) : null,
+    h('span', { className: 'dsh-push-hint' }, relativeTime(row.publishedAt)));
+
+  const renderPackage = (pkg) => h('div', { key: pkg.name, className: 'dsh-push-row' },
+    h('div', { className: 'dsh-push-row-main', onClick: () => togglePackage(pkg.name) },
+      h('span', { className: 'dsh-push-mono' }, pkg.name),
+      h('span', { className: 'dsh-push-hint' }, pkg.version ? 'v' + pkg.version : ''),
+      pkg.description ? h('span', { className: 'dsh-push-row-hint' }, pkg.description) : null),
+    h('div', { className: 'dsh-push-inline' },
+      pkg.links && pkg.links.npm
+        ? h('a', { className: 'dsh-push-btn dsh-push-btn--mini', href: pkg.links.npm, target: '_blank', rel: 'noreferrer' },
+          h(Icon, { name: 'external', size: 10 }))
+        : null),
+    openName === pkg.name && detail
+      ? h('div', { className: 'dsh-push-npm-detail' },
+        h('div', { className: 'dsh-push-row-hint' }, t('npmVersionCount', { n: detail.versionCount })),
+        detail.versions.slice(0, 12).map(renderVersion))
+      : null);
+
+  return h('div', { className: 'dsh-push-group' },
+    h('div', { className: 'dsh-push-group-head' },
+      h('span', null, t('npmSection')),
+      h('span', { className: 'dsh-push-row-hint' }, t('npmReadOnly'))),
+
+    /* 账号行 */
+    list.length === 0
+      ? h('div', { className: 'dsh-push-row', style: { borderBottom: 'none' } },
+        h('div', { className: 'dsh-push-row-label' },
+          h('input', {
+            className: 'dsh-push-input',
+            type: 'password',
+            value: token,
+            placeholder: t('npmTokenPlaceholder'),
+            spellCheck: false,
+            style: { width: '260px' },
+            onChange: (e) => setToken(e.target.value),
+          })),
+        h(Btn, { disabled: busy === 'add' || token.trim() === '', onClick: addAccount },
+          t('npmAdd')))
+      : [
+        h('div', { className: 'dsh-push-rows', key: 'row' },
+          list.map((account) => h('div', { key: account.id, className: 'dsh-push-row' },
+            h('div', { className: 'dsh-push-row-label' },
+              h('span', { className: 'dsh-push-mono' }, account.login),
+              account.id === activeId
+                ? h('span', { className: 'dsh-push-pill' }, t('npmCurrent'))
+                : null),
+            h('div', { className: 'dsh-push-inline' },
+              account.id === activeId
+                ? null
+                : h(Btn, { mini: true, disabled: Boolean(busy), onClick: () => switchAccount(account.id) },
+                  t('npmSwitch')),
+              h(Btn, { mini: true, kind: 'danger', disabled: Boolean(busy), onClick: () => removeAccount(account.id) },
+                t('npmRemove')))))) ,
+        h('div', { className: 'dsh-push-row', key: 'add', style: { borderBottom: 'none' } },
+          h('div', { className: 'dsh-push-row-label' },
+            h('input', {
+              className: 'dsh-push-input',
+              type: 'password',
+              value: token,
+              placeholder: t('npmTokenPlaceholder'),
+              spellCheck: false,
+              style: { width: '260px' },
+              onChange: (e) => setToken(e.target.value),
+            })),
+          h(Btn, { disabled: busy === 'add' || token.trim() === '', onClick: addAccount },
+            t('npmAdd'))),
+      ],
+
+    /* 包列表 */
+    packages === null
+      ? null
+      : packages.length === 0
+        ? h('div', { className: 'dsh-push-hint' }, t('npmNoPackages'))
+        : h('div', { className: 'dsh-push-rows' }, packages.map(renderPackage)));
+}
 
     /* ───────────── B2. main page: remote repositories ───────────────────── */
 

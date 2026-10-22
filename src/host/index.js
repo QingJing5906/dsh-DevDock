@@ -63,6 +63,13 @@ deleteRepo,
   updateRepo,
   verifyToken,
 } from './github.js';
+
+// DevDock 的 npm 模块（只读：认账号、列包、看版本）。
+import {
+  npmWhoami,
+  npmSearchByMaintainer,
+  npmPackument,
+} from './npm.js';
 import {
   GitError,
   GitRunner,
@@ -2241,7 +2248,103 @@ export class GithubLinkHost extends ServiceClass {
     return { cleared: had };
   }
 
-  /* ---------------- CONTRACT §3d: pre-push review ---------------- */
+  /* ---------------- DevDock npm module (read-only) ---------------- */
+
+  /**
+   * `GET /npm/accounts` — npm accounts without their tokens.
+   * @returns {Promise<object>}
+   */
+  async npmAccounts() {
+    return this.#store.npmAccounts();
+  }
+
+  /**
+   * `POST /npm/account` — verify a token against the registry, then store it.
+   *
+   * The token is checked BEFORE it is saved: storing an unverified token is
+   * how a settings page ends up showing an account that cannot do anything.
+   *
+   * @param {object} body `{ token }`
+   * @returns {Promise<object>}
+   */
+  async npmAccountAdd(body) {
+    const token = requireString(body, 'token', 'npm 令牌').trim();
+    const who = await npmWhoami({ token });
+    const saved = await this.#store.saveNpmAccount({ login: who.login, token });
+    return saved;
+  }
+
+  /**
+   * `POST /npm/account/remove` — forget one npm account.
+   * @param {object} body `{ id }`
+   * @returns {Promise<{removed: boolean}>}
+   */
+  async npmAccountRemove(body) {
+    const id = requireString(body, 'id', '账号 id');
+    const removed = await this.#store.deleteNpmAccount(id);
+    if (!removed) throw httpError(404, 'NOT_FOUND', '找不到这个 npm 账号，可能已被移除。');
+    return { removed: true };
+  }
+
+  /**
+   * `POST /npm/account/active` — switch the current npm account.
+   * @param {object} body `{ id }`
+   * @returns {Promise<{activeId: string}>}
+   */
+  async npmAccountActive(body) {
+    const id = requireString(body, 'id', '账号 id');
+    const ok = await this.#store.setActiveNpmAccount(id);
+    if (!ok) throw httpError(404, 'NOT_FOUND', '找不到这个 npm 账号。');
+    return { activeId: id };
+  }
+
+  /** 当前 npm 账号，缺失时给出可执行的提示而不是空结果。 */
+  async #requireNpmAccount() {
+    const account = await this.#store.activeNpmAccount();
+    if (!account) {
+      throw httpError(401, 'NO_ACCOUNT', '还没有登录 npm。请在设置 › npm 中添加一个 Granular Access Token。');
+    }
+    return account;
+  }
+
+  /**
+   * `GET /npm/packages` — packages the current account maintains.
+   * @param {object} query
+   * @returns {Promise<object>}
+   */
+  async npmPackages(query) {
+    const account = await this.#requireNpmAccount();
+    const result = await npmSearchByMaintainer({
+      token: account.token,
+      login: account.login,
+      size: Number.isFinite(query && query.size) ? Number(query.size) : 20,
+      from: Number.isFinite(query && query.from) ? Number(query.from) : 0,
+    });
+    await this.#store.touchNpmAccount(account.id);
+    return {
+      login: account.login,
+      items: result.items,
+      total: result.total,
+    };
+  }
+
+  /**
+   * `GET /npm/package` — one package's versions and dist-tags.
+   *
+   * Public data, so no token is required; a token is still passed when one is
+   * available so private/org packages resolve too.
+   *
+   * @param {object} query
+   * @returns {Promise<object>}
+   */
+  async npmPackage(query) {
+    const name = requireString(query, 'name', '包名').trim();
+    const account = await this.#store.activeNpmAccount();
+    const result = await npmPackument({ name, token: account ? account.token : undefined });
+    return result;
+  }
+
+  /* ---------------- CONTRACT §3d: pre-push review ---------------- */  /* ---------------- CONTRACT §3d: pre-push review ---------------- */
 
   /**
    * `GET /review/presets` — built-ins plus the user's saved prompts.
@@ -2601,6 +2704,14 @@ function buildRoutes(host) {
   return [
     // §1 accounts + settings
     get('/state', async () => ({ data: await host.state() })),
+    get('/npm/accounts', async () => ({ data: await host.npmAccounts() })),
+    post('/npm/account', async ({ body }) => ({ data: await host.npmAccountAdd(body) })),
+    post('/npm/account/remove', async ({ body }) => ({ data: await host.npmAccountRemove(body) })),
+    post('/npm/account/active', async ({ body }) => ({ data: await host.npmAccountActive(body) })),
+    get('/npm/packages', async ({ query }) => ({
+      data: await host.npmPackages({ size: Number(query('size')) || undefined, from: Number(query('from')) || 0 }),
+    })),
+    get('/npm/package', async ({ query }) => ({ data: await host.npmPackage({ name: query('name') }) })),
     get('/diagnostics', async () => ({ data: await host.diagnostics() })),
     post('/accounts/token', async ({ body }) => ({ data: await host.addTokenAccount(body) })),
     post('/accounts/device/start', async () => ({ data: await host.deviceStart() })),

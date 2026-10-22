@@ -103,6 +103,31 @@ export function publicAccount(account) {
   };
 }
 
+/**
+ * 归一化一条 npm 账号。
+ *
+ * 与 GitHub 账号同样只保留必要字段；`login` 是 npm 用户名，`token` 是
+ * Granular Access Token。没有令牌或没有用户名的条目直接丢弃，避免留下
+ * 一条"看起来存在但用不了"的账号。
+ *
+ * @param {object} raw
+ * @returns {object|undefined}
+ */
+function normalizeNpmAccount(raw) {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const login = typeof raw.login === 'string' ? raw.login.trim() : '';
+  const token = typeof raw.token === 'string' ? raw.token : '';
+  if (login === '' || token === '') return undefined;
+  return {
+    id: typeof raw.id === 'string' && raw.id !== '' ? raw.id : 'npm:' + login.toLowerCase(),
+    login,
+    token,
+    tokenKind: raw.tokenKind === 'classic' ? 'classic' : 'granular',
+    addedAt: typeof raw.addedAt === 'string' ? raw.addedAt : new Date(0).toISOString(),
+    lastUsedAt: typeof raw.lastUsedAt === 'string' ? raw.lastUsedAt : null,
+  };
+}
+
 /** A fresh, empty document. */
 function emptyState() {
   return {
@@ -116,6 +141,10 @@ function emptyState() {
     // CONTRACT §3d: the user's SAVED review prompts. Built-ins live in code,
     // so this table only ever holds presets the user created.
     reviewPresets: [],
+    // DevDock 的 npm 模块：与 GitHub 账号分开存。两者的令牌形态、校验
+    // 端点和可用动作都不同，混在一张表里会让每个消费者都要判断 provider。
+    npmAccounts: [],
+    activeNpmAccountId: null,
   };
 }
 
@@ -331,6 +360,19 @@ function normalizeState(raw) {
   // dropped rather than failing the whole document — a hand-edited preset list
   // must degrade to "fewer presets", never to a plugin that cannot answer.
   state.reviewPresets = normalizeReviewPresets(raw.reviewPresets);
+  // npm 账号与 GitHub 账号是两张独立的表，各自归一化、各自记 active。
+  const npmSeen = new Set();
+  for (const entry of Array.isArray(raw.npmAccounts) ? raw.npmAccounts : []) {
+    const account = normalizeNpmAccount(entry);
+    if (!account || npmSeen.has(account.id)) continue;
+    npmSeen.add(account.id);
+    state.npmAccounts.push(account);
+  }
+  const activeNpm = typeof raw.activeNpmAccountId === 'string' ? raw.activeNpmAccountId : null;
+  state.activeNpmAccountId = activeNpm !== null && state.npmAccounts.some((a) => a.id === activeNpm)
+    ? activeNpm
+    : (state.npmAccounts[0]?.id ?? null);
+
   const active = typeof raw.activeAccountId === 'string' ? raw.activeAccountId : null;
   state.activeAccountId = active !== null && state.accounts.some((a) => a.id === active)
     ? active
@@ -516,6 +558,10 @@ export class GithubLinkStore {
         // saved: the mutation landed, the save reported success, and the next
         // read found an empty list.
         reviewPresets: (current.reviewPresets ?? []).map((preset) => ({ ...preset })),
+        // The npm account table is cloned for exactly the reason above: a
+        // field missing from this list is silently DROPPED on every write.
+        npmAccounts: (current.npmAccounts ?? []).map((account) => ({ ...account })),
+        activeNpmAccountId: current.activeNpmAccountId,
       };
       const result = await mutator(draft);
       await this.write(draft);
@@ -554,7 +600,106 @@ export class GithubLinkStore {
    */
   async secrets() {
     const state = await this.read();
-    return state.accounts.map((account) => account.token).filter((token) => typeof token === 'string' && token !== '');
+    // npm 令牌同样要参与脱敏：它出现在错误文本里就是一次泄漏。
+    return [
+      ...state.accounts.map((account) => account.token),
+      ...(state.npmAccounts ?? []).map((account) => account.token),
+    ].filter((token) => typeof token === 'string' && token !== '');
+  }
+
+  /**
+   * npm 账号列表（不带令牌）。
+   * @returns {Promise<{accounts: object[], activeId: string|null}>}
+   */
+  async npmAccounts() {
+    const state = await this.read();
+    return {
+      activeId: state.activeNpmAccountId,
+      accounts: state.npmAccounts.map((account) => ({
+        id: account.id,
+        login: account.login,
+        tokenKind: account.tokenKind,
+        addedAt: account.addedAt,
+        lastUsedAt: account.lastUsedAt,
+      })),
+    };
+  }
+
+  /**
+   * 当前 npm 账号（带令牌），没有则 undefined。
+   * @returns {Promise<object|undefined>}
+   */
+  async activeNpmAccount() {
+    const state = await this.read();
+    if (state.activeNpmAccountId === null) return undefined;
+    return state.npmAccounts.find((account) => account.id === state.activeNpmAccountId);
+  }
+
+  /**
+   * 保存（或更新）一条 npm 账号，并把它设为当前。
+   * @param {{login: string, token: string, tokenKind?: string}} input
+   * @returns {Promise<object>} 不含令牌的账号
+   */
+  async saveNpmAccount(input) {
+    const account = normalizeNpmAccount({
+      ...input,
+      addedAt: new Date().toISOString(),
+    });
+    if (!account) throw new Error('npm 账号缺少用户名或令牌');
+    await this.mutate((state) => {
+      const index = state.npmAccounts.findIndex((row) => row.id === account.id);
+      if (index >= 0) {
+        state.npmAccounts[index] = { ...state.npmAccounts[index], ...account };
+      } else {
+        state.npmAccounts = [...state.npmAccounts, account];
+      }
+      state.activeNpmAccountId = account.id;
+      return state;
+    });
+    return { id: account.id, login: account.login, tokenKind: account.tokenKind };
+  }
+
+  /**
+   * 删除一条 npm 账号；删掉当前账号时自动切到剩下的第一条。
+   * @param {string} id
+   * @returns {Promise<boolean>}
+   */
+  async deleteNpmAccount(id) {
+    return this.mutate((state) => {
+      const before = state.npmAccounts.length;
+      state.npmAccounts = state.npmAccounts.filter((account) => account.id !== id);
+      if (state.npmAccounts.length === before) return false;
+      if (state.activeNpmAccountId === id) {
+        state.activeNpmAccountId = state.npmAccounts[0]?.id ?? null;
+      }
+      return true;
+    });
+  }
+
+  /**
+   * 切换当前 npm 账号。
+   * @param {string} id
+   * @returns {Promise<boolean>}
+   */
+  async setActiveNpmAccount(id) {
+    return this.mutate((state) => {
+      if (!state.npmAccounts.some((account) => account.id === id)) return false;
+      state.activeNpmAccountId = id;
+      return true;
+    });
+  }
+
+  /**
+   * 记录一次成功使用。
+   * @param {string} id
+   * @returns {Promise<void>}
+   */
+  async touchNpmAccount(id) {
+    await this.mutate((state) => {
+      const index = state.npmAccounts.findIndex((account) => account.id === id);
+      if (index >= 0) state.npmAccounts[index].lastUsedAt = new Date().toISOString();
+      return state;
+    });
   }
 
   /** Current settings (a copy — callers may not mutate the cache). */

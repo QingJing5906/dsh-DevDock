@@ -53,7 +53,7 @@ for (const m of client.matchAll(/'(\/[a-z][a-zA-Z0-9/_?=&.-]*)'/g)) {
   // `review` belongs in this list: omitting it once made four live review
   // routes look unreachable, which is exactly the false signal this gate must
   // not produce.
-  if (/^\/(local|repos|push|review|accounts|state|settings|contributions|notifications|releases)\b/.test(raw)) {
+  if (/^\/(local|repos|push|review|npm|accounts|state|settings|contributions|notifications|releases)\b/.test(raw)) {
     clientPaths.add(raw);
   }
 }
