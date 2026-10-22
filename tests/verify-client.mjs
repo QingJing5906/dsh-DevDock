@@ -154,8 +154,19 @@ const source = await readFile(clientPath, 'utf8');
 new Function('window', 'document', source)(globalThis.window, globalThis.document);
 
 if (!registeredModule) throw new Error('client.js did not call window.__ModuleLoader__.load');
-if (registeredModule.id !== 'dsh-push') {
-  throw new Error(`unexpected module id: ${registeredModule.id}`);
+
+/* The loader keys modules by PACKAGE NAME, so the bundle id must equal it.
+ * Comparing against the manifest instead of a literal is what keeps a rename
+ * from silently unregistering every surface — which is exactly what happened
+ * when the package became `dsh-harness-push` while the bundle still said
+ * `dsh-push`. */
+const manifest = JSON.parse(
+  (await readFile(new URL('../package.json', import.meta.url), 'utf8')).replace(/^\uFEFF/, ''),
+);
+if (registeredModule.id !== manifest.name) {
+  throw new Error(
+    `client module id must equal the package name: got ${registeredModule.id}, expected ${manifest.name}`,
+  );
 }
 
 const factoryRequire = (name) => {

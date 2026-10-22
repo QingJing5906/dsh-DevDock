@@ -149,6 +149,34 @@ const check = (label, ok, detail) => checks.push({ label, ok: Boolean(ok), detai
     githubSrc.includes('repoPath(options.owner, options.repo)'));
 }
 
+/* ---- 9. client module identity must match the package name --------- */
+{
+  /* The browser module loader keys client modules by PACKAGE NAME. The doc is
+   * explicit: "the browser artifact registers a lazy factory whose id equals
+   * the package name".
+   *
+   * This shipped broken once: the package was renamed `dsh-harness-push` for
+   * npm while the bundle still registered `dsh-push`. The Host half stayed
+   * active, so the plugin looked enabled, but the client module registered
+   * under an id nobody resolved and EVERY surface disappeared — settings page,
+   * sidebar icon and workspace tab.
+   */
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8').replace(/^\uFEFF/, ''));
+  const bundleId = (/id:\s*'([^']+)'/.exec(client) || [])[1];
+  check('the client module id equals the package name',
+    bundleId === pkg.name, `${bundleId} vs ${pkg.name}`);
+
+  // The patch row name is the module SPECIFIER the loader resolves. It may be
+  // the installed alias rather than the manifest name, but it must exist.
+  const patchText = readFileSync('cordis.patch.yml', 'utf8');
+  const rowName = (/^\s+name:\s*(\S+)\s*$/m.exec(patchText) || [])[1];
+  check('the patch declares a module row', Boolean(rowName), rowName);
+
+  // One row only: a second row would mount the Host half twice.
+  const rows = (patchText.match(/^\s+- id:\s*\S+/gm) || []).length;
+  check('the patch inserts exactly one row', rows === 1, String(rows));
+}
+
 let failed = 0;
 for (const c of checks) {
   if (!c.ok) failed += 1;

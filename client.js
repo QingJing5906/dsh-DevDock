@@ -1,5 +1,8 @@
 window.__ModuleLoader__.load({
-  id: 'dsh-push',
+  // Must equal package.json `name`: the loader keys client modules by package
+  // name, so a mismatch registers the module under an id nobody resolves and
+  // every surface vanishes while the Host half still reports active.
+  id: 'dsh-harness-push',
   factory: (require) => {
     'use strict';
     /**
