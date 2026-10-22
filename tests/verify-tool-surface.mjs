@@ -66,24 +66,24 @@ const check = (label, ok, detail) => checks.push({ label, ok: Boolean(ok), detai
     extra.length ? `unimplemented: ${extra.join(', ')}` : 'all implemented');
 }
 
-/* ---- 2. tool results must be lossless JSON -------------------------- */
+/* ---- 2. the review tool asks, it does not run ---------------------- */
 {
-  check('the review result is projected field by field',
-    host.includes('findings: result.findings.map((finding) => ({'));
-  check('a missing file becomes null, not undefined',
-    /file: finding\.file === undefined \? null/.test(host));
-  check('a missing line becomes null, not undefined',
-    host.includes('line: Number.isFinite(finding.line) ? finding.line : null'));
-  check('the summary is coerced to a string',
-    host.includes("summary: String(result.summary ?? '')"));
-  // A JSON value with an undefined member is rejected by the tool layer, so no
-  // raw pass-through of a possibly-sparse object may remain.
-  check('review findings are not passed through raw',
-    !host.includes('findings: result.findings,'));
-  check('the model object is projected too',
-    host.includes('model: result.model') && host.includes('provider: String(result.model.provider'));
+  // 1.0.1: an agent may no longer execute a review on its own. The tool
+  // records a request and the panel opens the dialog; the user decides what
+  // gets inspected. The old assertions here pinned the projection of a
+  // RESULT, which the tool no longer produces.
+  const toolCase = host.slice(
+    host.indexOf("case 'review': {"),
+    host.indexOf('default:', host.indexOf("case 'review': {")),
+  );
+  check('the review tool returns a request, not findings',
+    toolCase.includes('reviewRequest') && !toolCase.includes('findings'));
+  check('it does not call reviewRun directly', !toolCase.includes('reviewRun('));
+  check('a pending request is recorded', host.includes('#raiseReviewRequest('));
+  check('a duplicate request is refused', host.includes("status: 'already_pending'"));
+  check('leaving the dialog frees the slot',
+    host.includes('this.#reviewRequest = null;'));
 }
-
 /* ---- 3. git auth must use the scheme the transport accepts ---------- */
 {
   const env = authEnv('ghp_example_token_value_123456', {});
@@ -170,11 +170,11 @@ const check = (label, ok, detail) => checks.push({ label, ok: Boolean(ok), detai
     prologue > 0 && (firstReturn < 0 || prologue < firstReturn));
   check('no hook sits inside the not-a-repo branch',
     !client.includes("        const resolved = (props.scope && (props.scope.repoRoot || props.scope.cwd)) || cwd;\n      // Pre-push review"));
-  // Inline var() colours rendered as black once; tones must come from CSS.
-  check('language tones are painted from the stylesheet',
-    client.includes('data-tone') && client.includes('.dsh-push-langseg[data-tone="0"]'));
-  check('no inline var() background remains on a tone element',
-    !client.includes('background: langTone'));
+  // 1.0.1: colours come from the LANGUAGE NAME (GitHub identity colours),
+  // not from the segment position, which painted the first one black.
+  check('language segments paint from the language name',
+    client.includes('background: langColor(item.name)'));
+  check('the position-based palette is gone', !client.includes('LANG_TONES'));
 }
 
 let failed = 0;

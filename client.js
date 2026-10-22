@@ -301,6 +301,8 @@ window.__ModuleLoader__.load({
       tabPickInclude: "包含",
       tabPickExclude: "排除",
       tabPickHint: "是否包含在本次提交中",
+      rvAgentAsked: "Agent 请求",
+      rvAgentAskedHint: "这次审查由智能体发起，需要你确认审查项后才会执行",
       rvTitle: "推送前审查",
       rvClose: "关闭",
       rvSettings: "设置",
@@ -755,6 +757,8 @@ window.__ModuleLoader__.load({
       tabPickInclude: "Include",
       tabPickExclude: "Exclude",
       tabPickHint: "Include this file in the next commit",
+      rvAgentAsked: "Agent request",
+      rvAgentAskedHint: "The agent asked for this review; nothing runs until you confirm the items",
       rvTitle: "Pre-push review",
       rvClose: "Close",
       rvSettings: "Settings",
@@ -1686,6 +1690,11 @@ window.__ModuleLoader__.load({
 /* ── pre-push review ─────────────────────────────────────────────── */
 .dsh-push-rv-head { display: flex; align-items: center; gap: 6px;
   padding: 10px 14px; border-bottom: 1px solid var(--dsw-alias-border-l1); }
+/* Marks a dialog the agent opened, so it never looks like a stray window. */
+.dsh-push-rv-agenttag { font-size: 11px; padding: 1px 6px; border-radius: 999px;
+  color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-bg-layer-2);
+  border: 1px solid var(--dsw-alias-border-l1); }
 .dsh-push-rv-title { font-size: 13px; font-weight: 600; }
 .dsh-push-rv-spacer { flex: 1 1 auto; }
 .dsh-push-rv-muted { font-size: 12px; color: var(--dsw-alias-label-secondary); }
@@ -1844,26 +1853,13 @@ window.__ModuleLoader__.load({
 .dsh-push-langbar { display: flex; height: 5px; width: 100%; flex: none;
   background: var(--dsw-alias-bg-layer-2); }
 .dsh-push-langbar--empty { opacity: .4; }
-.dsh-push-langseg { height: 100%; background: var(--dsw-alias-brand-primary); }
-.dsh-push-langseg[data-tone="0"] { background: var(--dsw-alias-brand-primary); }
-.dsh-push-langseg[data-tone="1"] { background: var(--dsw-alias-state-success-primary); }
-.dsh-push-langseg[data-tone="2"] { background: var(--dsw-alias-state-warn-primary); }
-.dsh-push-langseg[data-tone="3"] { background: var(--dsw-alias-state-idle-primary); }
-.dsh-push-langseg[data-tone="4"] { background: color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, var(--dsw-alias-state-success-primary)); }
-.dsh-push-langseg[data-tone="5"] { background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 60%, var(--dsw-alias-brand-primary)); }
-.dsh-push-langseg[data-tone="rest"] { background: var(--dsw-alias-border-l2); }
+.dsh-push-langseg { height: 100%; }
 .dsh-push-langseg--rest { background: var(--dsw-alias-border-l2); }
 .dsh-push-langlegend { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   font-size: 11px; color: var(--dsw-alias-label-secondary); }
 .dsh-push-langlegend-item { display: inline-flex; align-items: center; gap: 3px; }
 .dsh-push-langdot { width: 7px; height: 7px; border-radius: 50%; flex: none;
   background: var(--dsw-alias-brand-primary); }
-.dsh-push-langdot[data-tone="0"] { background: var(--dsw-alias-brand-primary); }
-.dsh-push-langdot[data-tone="1"] { background: var(--dsw-alias-state-success-primary); }
-.dsh-push-langdot[data-tone="2"] { background: var(--dsw-alias-state-warn-primary); }
-.dsh-push-langdot[data-tone="3"] { background: var(--dsw-alias-state-idle-primary); }
-.dsh-push-langdot[data-tone="4"] { background: color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, var(--dsw-alias-state-success-primary)); }
-.dsh-push-langdot[data-tone="5"] { background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 60%, var(--dsw-alias-brand-primary)); }
 /* ── release assets ───────────────────────────────────────────────── */
 /* Two related release fields share a row on a wide dialog and stack when
    narrow, so neither gets squeezed to an unusable width. */
@@ -2541,6 +2537,9 @@ window.__ModuleLoader__.load({
       const [tab, setTab] = useState('overview');
       const [busy, setBusy] = useState(false);
       const [notice, setNotice] = useState('');
+
+  /* A dialog that opened by itself must say so. */
+  const agentAsked = Boolean(props.pending && props.pending.source === 'agent');
       const [actionError, setActionError] = useState('');
 
       // §设置 draft
@@ -5277,26 +5276,143 @@ function effortLabelFor(models, value) {
 /** One labelled control row inside the review dialogs. */
 /* ═══════════════ repository cards + language bar ═══════════════ */
 
-/** A stable colour per language, derived from the theme's own tokens. */
-const LANG_TONES = [
-  'var(--dsw-alias-brand-primary)',
-  'var(--dsw-alias-state-success-primary)',
-  'var(--dsw-alias-state-warn-primary)',
-  'var(--dsw-alias-state-idle-primary)',
-  'color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, var(--dsw-alias-state-success-primary))',
-  'color-mix(in srgb, var(--dsw-alias-state-warn-primary) 60%, var(--dsw-alias-brand-primary))',
+/* GitHub linguist colours — the ones users already recognise from GitHub. */
+const LANG_COLOR_MAP = [
+  ['JavaScript', '#F1E05A'],
+  ['TypeScript', '#3178C6'],
+  ['Python', '#3572A5'],
+  ['HTML', '#E34C26'],
+  ['CSS', '#563D7C'],
+  ['SCSS', '#C6538C'],
+  ['Sass', '#A53B70'],
+  ['Less', '#1D365D'],
+  ['Vue', '#41B883'],
+  ['Svelte', '#FF3E00'],
+  ['Astro', '#FF5A03'],
+  ['Java', '#B07219'],
+  ['Kotlin', '#A97BFF'],
+  ['Swift', '#F05138'],
+  ['Objective-C', '#438EFF'],
+  ['C', '#555555'],
+  ['C++', '#F34B7D'],
+  ['C#', '#178600'],
+  ['F#', '#B845FC'],
+  ['Go', '#00ADD8'],
+  ['Rust', '#DEA584'],
+  ['Ruby', '#701516'],
+  ['PHP', '#4F5D95'],
+  ['Dart', '#00B4AB'],
+  ['Scala', '#C22D40'],
+  ['Haskell', '#5E5086'],
+  ['Elixir', '#6E4A7E'],
+  ['Erlang', '#B83998'],
+  ['Clojure', '#DB5855'],
+  ['Groovy', '#4298B8'],
+  ['Lua', '#000080'],
+  ['Perl', '#0298C3'],
+  ['R', '#198CE7'],
+  ['Julia', '#A270BA'],
+  ['MATLAB', '#E16737'],
+  ['Shell', '#89E051'],
+  ['PowerShell', '#012456'],
+  ['Batchfile', '#C1F12E'],
+  ['Assembly', '#6E4C13'],
+  ['Zig', '#EC915C'],
+  ['Nim', '#FFC200'],
+  ['OCaml', '#3BE133'],
+  ['Solidity', '#AA6746'],
+  ['GDScript', '#355570'],
+  ['Vim Script', '#199F4B'],
+  ['Emacs Lisp', '#C065DB'],
+  ['Makefile', '#427819'],
+  ['Dockerfile', '#384D54'],
+  ['CMake', '#DA3434'],
+  ['Nix', '#7E7EFF'],
+  ['Jupyter Notebook', '#DA5B0B'],
+  ['Markdown', '#083FA1'],
+  ['MDX', '#FCB32C'],
+  ['TeX', '#3D6117'],
+  ['JSON', '#292929'],
+  ['YAML', '#CB171E'],
+  ['TOML', '#9C4221'],
+  ['SQL', '#E38C00'],
+  ['GraphQL', '#E10098'],
+  ['Protocol Buffer', '#B7D8EC'],
+  ['Thrift', '#D12127'],
+  ['HCL', '#844FBA'],
+  ['V', '#4F87C4'],
+  ['Crystal', '#000100'],
+  ['D', '#BA595E'],
+  ['Racket', '#3C5CAA'],
+  ['Scheme', '#1E4AEC'],
+  ['Prolog', '#74283C'],
+  ['Fortran', '#4D41B1'],
+  ['COBOL', '#A8B9CC'],
+  ['Pascal', '#E3F171'],
+  ['Ada', '#02F88C'],
+  ['Verilog', '#B2B7F8'],
+  ['VHDL', '#ADB2CB'],
+  ['WebAssembly', '#04133B'],
+  ['GLSL', '#5686A5'],
+  ['ShaderLab', '#222C37'],
 ];
 
+const LANG_COLORS = new Map(LANG_COLOR_MAP);
+
+/** GitHub's own colours for the languages linguist renders without a marker. */
+const LANG_ALIASES = new Map([
+  ['js', 'JavaScript'],
+  ['ts', 'TypeScript'],
+  ['py', 'Python'],
+  ['sh', 'Shell'],
+  ['bash', 'Shell'],
+  ['zsh', 'Shell'],
+  ['ps1', 'PowerShell'],
+  ['c++', 'C++'],
+  ['cpp', 'C++'],
+  ['c#', 'C#'],
+  ['cs', 'C#'],
+  ['objc', 'Objective-C'],
+  ['yml', 'YAML'],
+  ['md', 'Markdown'],
+  ['htm', 'HTML'],
+  ['golang', 'Go'],
+  ['rs', 'Rust'],
+  ['rb', 'Ruby'],
+  ['kt', 'Kotlin'],
+]);
+
+
 /**
- * Which colour a language gets.
+ * The brand colour of a language, as GitHub shows it.
  *
- * Indexed by the language's position in the sorted list rather than by its
- * name hash: the ordering is already stable (largest first), so the colours
- * stay stable too, and two adjacent segments can never collide.
+ * Lookup is BY NAME. An unknown language gets a stable fallback derived from its
+ * name (so the same language keeps the same colour across repos), never a
+ * position-based one, which is what made every first segment black.
+ *
+ * @param {string} name language name as GitHub reports it.
+ * @returns {string} a CSS colour.
  */
-function langTone(index) {
-  return LANG_TONES[index % LANG_TONES.length];
+function langColor(name) {
+  const raw = String(name ?? '').trim();
+  if (raw === '') return FALLBACK_COLORS[0];
+  const direct = LANG_COLORS.get(raw);
+  if (direct) return direct;
+  const alias = LANG_ALIASES.get(raw.toLowerCase());
+  if (alias && LANG_COLORS.get(alias)) return LANG_COLORS.get(alias);
+  // Case-insensitive match, so "javascript" still lands on JavaScript.
+  const lower = raw.toLowerCase();
+  for (const [key, value] of LANG_COLOR_MAP) {
+    if (key.toLowerCase() === lower) return value;
+  }
+  // Stable per-name fallback with its own hue: an eight-colour palette made
+  // two different unknown languages share a colour inside one bar.
+  let hash = 0;
+  for (let i = 0; i < raw.length; i += 1) hash = (hash * 31 + raw.charCodeAt(i)) >>> 0;
+  const hue = hash % 360;
+  return `hsl(${hue} 62% 52%)`;
 }
+
 
 /**
  * The proportion bar pinned to a card's bottom edge.
@@ -5322,19 +5438,20 @@ function LanguageBar(props) {
     head.map((item, index) => h('span', {
       key: item.name,
       className: 'dsh-push-langseg',
-      // The colour is painted by a stylesheet rule keyed on this index; an
-      // inline var() background rendered as an initial-colour (black) strip.
-      'data-tone': String(index % LANG_TONES.length),
+      // The language's OWN colour. A literal hex is correct here: these are
+      // identity colours (like an avatar), not theme colours, and they must
+      // match what GitHub shows for the same language.
       style: {
         width: String(Math.max(0.5, Number(item.percent) || 0)) + '%',
+        background: langColor(item.name),
       },
       title: `${item.name} ${item.percent}%`,
     })),
     rest.length > 0
       ? h('span', {
         className: 'dsh-push-langseg dsh-push-langseg--rest',
-        'data-tone': 'rest',
-        style: { width: String(Math.max(0.5, restPercent)) + '%' },
+        // The folded tail is intentionally neutral: it is not a language.
+        style: { width: String(Math.max(0.5, restPercent)) + '%', background: 'var(--dsw-alias-border-l2)' },
         title: rest.map((item) => `${item.name} ${item.percent}%`).join('\n'),
       })
       : null);
@@ -5349,7 +5466,7 @@ function LanguageLegend(props) {
     head.map((item, index) => h('span', { key: item.name, className: 'dsh-push-langlegend-item' },
       h('span', {
         className: 'dsh-push-langdot',
-        'data-tone': String(index % LANG_TONES.length),
+        style: { background: langColor(item.name) },
       }),
       h('span', null, item.name + ' ' + item.percent + '%'))),
     items.length > 3
@@ -5728,6 +5845,23 @@ function ReviewDialog(props) {
     return () => { cancelled = true; };
   }, [props.open, ctx]);
 
+  // An agent-initiated request arrives with a path and proposed items; seed
+  // the form from it so confirming is a single click. Declared BEFORE the
+  // catalog load so `picked` is ready by the time the cards render.
+  useEffect(() => {
+    if (!props.open) return;
+    const pending = props.pending;
+    if (!pending) return;
+    const next = {};
+    for (const id of (pending.presetIds || [])) next[id] = true;
+    setPicked(next);
+    if (typeof pending.customPrompt === 'string') setCustomPrompt(pending.customPrompt);
+    // A request always starts at the configuration step: the user must see
+    // and confirm the choices.
+    setStep('configure');
+    setResult(null);
+  }, [props.open, props.pending]);
+
   useEffect(() => {
     if (!notice) return undefined;
     const id = setTimeout(() => { if (aliveRef.current) setNotice(''); }, 3000);
@@ -5825,6 +5959,11 @@ function ReviewDialog(props) {
   const configureBody = [
     h('div', { className: 'dsh-push-rv-head', key: 'head' },
       h('span', { className: 'dsh-push-rv-title' }, t('rvTitle')),
+      // A dialog that opened by itself must say why.
+      agentAsked
+        ? h('span', { className: 'dsh-push-rv-agenttag', title: t('rvAgentAskedHint') },
+          t('rvAgentAsked'))
+        : null,
       h('span', { className: 'dsh-push-rv-spacer' }),
       h('button', {
         type: 'button',
@@ -6898,6 +7037,31 @@ function ReviewDialog(props) {
         return () => clearInterval(id);
       }, [cwd, visible, refresh]);
 
+      /* An agent cannot run a review on its own any more: it records a
+         request, and this poll turns that request into the ordinary review
+         dialog so the user picks the items. Polling is what makes the agent
+         path and the button path end in the same place. */
+      useEffect(() => {
+        if (!cwd) return undefined;
+        let live = true;
+        const check = async () => {
+          try {
+            const data = await api(ctx, API + '/review/pending?path=' + encodeURIComponent(cwd));
+            if (!live || !aliveRef.current) return;
+            const pending = data && data.pending;
+            if (!pending) return;
+            // Already showing it? Leave the user alone.
+            setReviewPending((current) => (current && current.id === pending.id ? current : pending));
+            setReviewOpen(true);
+          } catch (error) {
+            /* a failed poll must never disturb the panel */
+          }
+        };
+        check();
+        const id = setInterval(check, STATUS_POLL_MS);
+        return () => { live = false; clearInterval(id); };
+      }, [ctx, cwd]);
+
       // The picked set is per repository: another root means other file paths.
       const rootKey = (status && status.root) || '';
       useEffect(() => { setUnpicked(new Set()); }, [rootKey]);
@@ -7090,6 +7254,9 @@ function ReviewDialog(props) {
       // and left `reviewResult` undefined on the normal path, which crashed the
       // whole tab on a real repository.
       const [reviewOpen, setReviewOpen] = useState(false);
+      // The request an agent raised, if any. Rendering the dialog from it is
+      // what guarantees the agent path asks the user before inspecting anything.
+      const [reviewPending, setReviewPending] = useState(null);
       const [reviewResult, setReviewResult] = useState(null);
 
       const copySha = async (sha) => {
@@ -7124,7 +7291,19 @@ function ReviewDialog(props) {
         path: cwd,
         status,
         ctx,
-        onClose: () => setReviewOpen(false),
+        // Seeded when an agent asked for a review; null for a manual click.
+        pending: reviewPending,
+        onClose: () => {
+          setReviewOpen(false);
+          // Answering (either way) frees the slot so a later request can open
+          // a fresh dialog instead of being swallowed by the dedupe guard.
+          const pending = reviewPending;
+          setReviewPending(null);
+          if (pending && pending.id) {
+            api(ctx, API + '/review/pending/clear', { method: 'POST', body: { id: pending.id } })
+              .catch(() => {});
+          }
+        },
         onReviewed: (result) => setReviewResult(result),
       });
 

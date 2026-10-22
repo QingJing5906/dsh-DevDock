@@ -304,6 +304,34 @@ ReviewPreset = {
 - `POST /review/presets/delete` body `{ id }` → `{ deleted: true }`
   只能删自定义预设；删内置返回 `CONFLICT`。
 
+### 审查请求闸门（agent 不得自行审查）
+
+智能体**不能**直接执行审查。它只能登记一个待确认请求，由界面弹出与人工点击
+相同的审查弹窗，用户选择审查项后才真正开跑。原因：审查是安全步骤，用户必须
+看得见、能决定审查什么；早期允许直接执行时，agent 会在「推送」任务里反复自动
+审查而不提示用户。
+
+- `GET /review/pending?path=` → `{ pending: { id, path, presetIds, customPrompt, source, createdAt } | null }`
+  - 客户端轮询它；非空即打开审查弹窗，并用 `presetIds` 预选、`customPrompt` 预填
+  - 同一时刻只保留**一个**待确认请求
+
+- `POST /review/pending/clear` body：`{ id?: string }` → `{ cleared: boolean }`
+  - 用户开始审查或关闭弹窗时调用；`id` 不匹配则不清理（避免误清掉新请求）
+
+工具 `review` 的行为：
+
+```ts
+{ reviewRequest: {
+    status: 'awaiting_user' | 'already_pending',
+    message: string,   // 给模型看的说明：等用户确认，不要重复调用
+    pending: object | null
+} }
+```
+
+- **不再返回 findings**：结果由界面在用户确认后产生
+- 已有待确认请求时返回 `already_pending`，这是阻止 agent 反复请求的机制
+
+
 ### 审查执行
 
 - `POST /review/run` body：
@@ -471,7 +499,7 @@ create_repo · release · review
 ```
 
 - `push` / `release` 都接受 `owner` + `repo` 指定目标仓库，因此智能体无需预先配置远端
-- `review` 与弹窗走同一个 `reviewRun` 服务方法，返回 `scope` 与 `findings`
+- `review` **不执行审查**，只登记待确认请求并返回 `reviewRequest`；用户确认后由界面调用 `reviewRun`
 - 工具结果必须是**无损 JSON**：findings 的缺失字段一律投影为 `null`，不能留 `undefined`
 - schema 只能用宿主支持的子集（`type` / `oneOf` / `properties` / `required` /
   `additionalProperties` / `items` / `enum` / `const`）；`type: [...]` 与 `anyOf`

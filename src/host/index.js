@@ -303,6 +303,15 @@ export class GithubLinkHost extends ServiceClass {
   #store;
   /** @type {(disposer: () => void) => void} unwinds routes + tool on unload. */
   #stop = () => {};
+  /**
+   * A review an agent asked for, waiting for the user to confirm it in the
+   * panel. Only one at a time: a second request while this is set is answered
+   * with "already pending" instead of stacking dialogs (or looping).
+   * @type {{id: string, path: string, presetIds: string[], customPrompt: string,
+   *   createdAt: number, source: string} | null}
+   */
+  #reviewRequest = null;
+
   /** Cached `git --version` probe, keyed by the gitPath it was taken for. */
   #gitProbe;
   /** Time of that probe (ms). */
@@ -1998,50 +2007,19 @@ export class GithubLinkHost extends ServiceClass {
         };
       }
       case 'review': {
-        // The MODEL can run the same review the dialog runs; it just cannot
-        // open a dialog (that is a user-facing surface). Findings come back
-        // as text so they can be read and acted on in the same turn.
+        // NEVER run a review on the model's own initiative: the user must see
+        // the dialog and choose what is inspected. Record a request; the panel
+        // picks it up and opens the normal review dialog.
         const presetIds = Array.isArray(args?.presetIds)
           ? args.presetIds.filter((id) => typeof id === 'string' && id !== '')
           : [];
-        const result = await this.reviewRun({
+        const raised = this.#raiseReviewRequest({
           path: await cwd(),
           presetIds,
           customPrompt: optionalString(args?.customPrompt) ?? '',
-          staged: optionalBool(args?.staged, false),
+          source: 'agent',
         });
-        return {
-          action,
-          review: {
-            summary: String(result.summary ?? ''),
-            degraded: result.degraded === true,
-            // Projected field by field: a finding legitimately omits file,
-            // line and suggestion, and `undefined` is not lossless JSON, so
-            // passing the objects through failed the whole tool call.
-            model: result.model
-              ? {
-                provider: String(result.model.provider ?? ''),
-                model: String(result.model.model ?? ''),
-                label: String(result.model.label ?? ''),
-              }
-              : null,
-            effort: result.effort === undefined || result.effort === null
-              ? null
-              : String(result.effort),
-            scope: result.scope === 'outgoing' ? 'outgoing' : 'working',
-            outgoingCommits: Number(result.outgoingCommits) || 0,
-            files: result.files.map((entry) => String(entry.path)),
-            findings: result.findings.map((finding) => ({
-              severity: String(finding.severity ?? ''),
-              category: String(finding.category ?? ''),
-              title: String(finding.title ?? ''),
-              detail: String(finding.detail ?? ''),
-              file: finding.file === undefined ? null : String(finding.file),
-              line: Number.isFinite(finding.line) ? finding.line : null,
-              suggestion: finding.suggestion === undefined ? '' : String(finding.suggestion),
-            })),
-          },
-        };
+        return { action, reviewRequest: raised };
       }
       default:
         throw httpError(
@@ -2189,6 +2167,80 @@ export class GithubLinkHost extends ServiceClass {
       },
     };
   }
+  /* ---------------- review request gate (agent must ask a human) ---------------- */
+
+  /**
+   * Record an agent-initiated review request for the panel to confirm.
+   *
+   * One slot only. A second request while one is waiting is answered with
+   * `alreadyPending`, which is what stops an agent from re-requesting in a
+   * loop when the user has simply not clicked yet.
+   *
+   * @param {{path: string, presetIds: string[], customPrompt: string, source: string}} request
+   * @returns {object}
+   */
+  #raiseReviewRequest(request) {
+    if (this.#reviewRequest) {
+      return {
+        status: 'already_pending',
+        message: '已有一个待确认的审查请求，用户尚未在界面中确认。不要重复请求，也不要自行执行审查。',
+        pending: this.#publicReviewRequest(),
+      };
+    }
+    this.#reviewRequest = {
+      id: `rvreq_${Date.now().toString(36)}`,
+      path: String(request.path ?? ''),
+      presetIds: Array.isArray(request.presetIds) ? request.presetIds : [],
+      customPrompt: String(request.customPrompt ?? ''),
+      source: String(request.source ?? 'agent'),
+      createdAt: Date.now(),
+    };
+    return {
+      status: 'awaiting_user',
+      message: '已在界面中打开审查配置窗口，等待用户选择审查项。在用户确认并开始之前，不要再次调用 review，也不要用其他方式自行执行审查。',
+      pending: this.#publicReviewRequest(),
+    };
+  }
+
+  /** The pending request in a shape the client can render. */
+  #publicReviewRequest() {
+    const request = this.#reviewRequest;
+    if (!request) return null;
+    return {
+      id: request.id,
+      path: request.path,
+      presetIds: [...request.presetIds],
+      customPrompt: request.customPrompt,
+      source: request.source,
+      createdAt: request.createdAt,
+    };
+  }
+
+  /**
+   * `GET /review/pending` — what the panel polls to know it must open the dialog.
+   * @returns {Promise<{pending: object|null}>}
+   */
+  async reviewPending() {
+    return { pending: this.#publicReviewRequest() };
+  }
+
+  /**
+   * `POST /review/pending/clear` — the user answered the request (started it,
+   * or dismissed it). Clearing is what lets a later agent request raise a new
+   * dialog instead of being swallowed by the dedupe guard.
+   * @param {object} [body]
+   * @returns {Promise<{cleared: boolean}>}
+   */
+  async reviewPendingClear(body) {
+    const id = optionalString(body?.id);
+    if (id !== undefined && this.#reviewRequest && this.#reviewRequest.id !== id) {
+      return { cleared: false };
+    }
+    const had = this.#reviewRequest !== null;
+    this.#reviewRequest = null;
+    return { cleared: had };
+  }
+
   /* ---------------- CONTRACT §3d: pre-push review ---------------- */
 
   /**
@@ -2645,6 +2697,8 @@ function buildRoutes(host) {
     post('/review/presets', async ({ body }) => ({ data: await host.reviewPresetSave(body) })),
     post('/review/presets/delete', async ({ body }) => ({ data: await host.reviewPresetDelete(body) })),
     get('/review/models', async () => ({ data: await host.reviewModels() })),
+    get('/review/pending', async () => ({ data: await host.reviewPending() })),
+    post('/review/pending/clear', async ({ body }) => ({ data: await host.reviewPendingClear(body) })),
     post('/review/run', async ({ body }) => ({ data: await host.reviewRun(body) })),
 
     // §3b push targets + per-branch memory

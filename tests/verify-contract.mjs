@@ -70,8 +70,10 @@ const check = (label, ok, detail) => checks.push({ label, ok: Boolean(ok), detai
   check('CONTRACT documents review scope', contract.includes("scope: 'working' | 'outgoing'"));
   check('the host returns scope', host.includes("scope: changes.scope === 'outgoing'"));
   check('the host returns outgoingCommits', host.includes('outgoingCommits:'));
-  check('the review tool result carries the scope too',
-    host.includes("scope: result.scope === 'outgoing'"));
+  // 1.0.1: the tool no longer returns findings/scope — it raises a request the
+  // user must confirm. The scope is still returned by /review/run itself.
+  check('the review gate routes exist',
+    host.includes("get('/review/pending'") && host.includes("post('/review/pending/clear'"));
 }
 
 /* ---- 5. the release payload carries assets -------------------------- */
