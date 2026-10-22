@@ -17,3 +17,6 @@ desktop.ini
 npm-debug.log*
 .env
 .env.*
+
+# 宣传视频抽帧（可用 promo/render.py 重新生成，不入库）
+promo/frames/
