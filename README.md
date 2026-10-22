@@ -1,16 +1,33 @@
-# Push · dsh-push
+# DevDock
 
-> 在 DeepSeek Harness 里直接登录 GitHub、管理仓库，并驱动当前工作区的 Git 版本树——不用切浏览器，不用记命令。
+> 在 DeepSeek Harness 里管好研发账号与服务：装一次，GitHub、Cloudflare、npm 都在同一个面板里切换。
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-plugin-4c6ef5.svg)](https://github.com/deepseek-ai)
+[![npm](https://img.shields.io/badge/npm-dsh--harness--push-cb3837.svg)](https://www.npmjs.com/package/dsh-harness-push)
 [![node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
+
+---
+
+## 这是什么
+
+**DevDock** 是面向 DeepSeek Harness 的研发账号与服务管理套件。它的目标很简单：让开发者不必在浏览器标签、终端和一堆控制台之间来回切换。
+
+套件按平台拆成能力模块，但**对外只有一个入口、一套操作习惯**。每个界面都是固定的一行，平台在入口内部用下拉切换——平台越多，占用的空间不增加。
+
+| 模块 | 状态 | 能力 |
+|---|---|---|
+| **GitHub / Git** | ✅ 已发布 | 多账号、仓库浏览与管理、工作区推送/撤回、版本树、推送前 Agent 审查 |
+| **Cloudflare** | 🔜 规划中 | 仪表板、Workers、Pages |
+| **npm** | 🔜 规划中 | 账号、包与版本 |
+
+> 当前仓库承载第一个模块。第二个模块落地时会改成 `packages/` 单仓多包结构，**仓库地址与 star 不变**。
 
 ---
 
 ## 项目简介
 
-`dsh-push` 是 DeepSeek Harness 的 GitHub / Git 管理插件。它把「看仓库、切账号、提交、推送、撤回」这些每天都要做的事收进 Harness 一个面板里，并把**推送前审查**交给模型——让即将离开本机的内容先被检查一遍。
+`dsh-harness-push` 是 DevDock 套件的 GitHub / Git 模块。它把「看仓库、切账号、提交、推送、撤回」这些每天都要做的事收进 Harness 一个面板里，并把**推送前审查**交给模型——让即将离开本机的内容先被检查一遍。
 
 它由两半组成：Host 侧提供一套完整的 GitHub REST 与 Git 命令封装（含令牌安全注入），Client 侧提供设置页、左侧仓库面板和工作区侧边栏。两侧共享同一套服务方法，所以**你在界面上做的操作，和智能体通过工具做的操作，行为完全一致**。
 
@@ -18,7 +35,7 @@
 
 ---
 
-## 亮点
+## GitHub / Git 模块 · 亮点
 
 | 亮点 | 说明 |
 |---|---|
@@ -32,16 +49,16 @@
 
 ---
 
-## 功能
+## GitHub / Git 模块 · 功能
 
-### 设置 › Push（独立一页）
+### 设置 › Push（独立一页，平台下拉的落点）
 
 - **账号卡片**：头像、昵称、`@login`、权限范围；右侧箭头展开下拉，可切换、移除账号；下拉箭头左侧一键跳转该账号的 GitHub 主页
 - **两种录入方式**：Personal Access Token（推荐，可细粒度授权）或 Device Flow 设备码登录
 - **账号概览**：最近一年贡献热力图、未读通知列表（可单条标记已读并跳转）
 - **仓库管理**（居中弹窗，对齐 GitHub 原站）：概览指标、分支管理、仓库设置（简介/主页/可见性/归档/默认分支）、发布、协作者、Webhook、危险操作区（重命名 / 转移 / 删除）
 
-### 左侧栏 Push（全局面板）
+### 左侧栏 Push（全局面板，图标随平台变化）
 
 - 当前账号下全部仓库：搜索、私有/公开分段、分页加载
 - **列表 / 卡片双视图**，卡片分大、小两档，选择会记住
@@ -50,7 +67,7 @@
   - star / fork / issue 指标横排展示
 - 新建仓库、删除仓库（删除需 `delete_repo`，且需二次确认）
 
-### 工作区侧边栏 Push（跟随当前会话目录）
+### 工作区侧边栏 Push（跟随当前会话目录，目前仅 GitHub）
 
 - **版本状态**：当前分支、`owner/repo`、ahead/behind、已暂存 / 未暂存 / 未跟踪 / 冲突计数
 - **一键提交、推送、拉取、抓取**
@@ -91,6 +108,18 @@ create_repo · release · review
 
 ## 安装
 
+### 命名：品牌 / 模块 / 包名
+
+三个名字各司其职，互不等同：
+
+| 层级 | 名字 | 用在哪 |
+|---|---|---|
+| 品牌 | **DevDock** | 对外介绍、文档、GitHub 项目页、未来套件首页 |
+| 模块 | **GitHub / Git** | 界面里的平台名（下拉里显示的那个） |
+| npm 包 | **`dsh-harness-push`** | `dsh plugin add` 与 npm 上的真实标识 |
+
+> 包名暂不与品牌对齐：它同时是 DSH 的模块身份（`package.json` name、`cordis.patch.yml` 行名、`client.js` 注册 id 三者必须相同），改它等于做一次安装迁移。等第二个模块落地、仓库改成单仓多包时，会一次性迁到 `dsh-devdock-*` 或 `@devdock/*`。
+
 > **命名说明**：npm 包名是 `dsh-harness-push`，GitHub 仓库名是 `dsh-push`。
 > 两者不同是因为 npm 上的 `dsh-push` 已被另一个用途无关的插件占用。
 > 插件的内部标识（工具名 `github_link`、路由 `/api/push/*`、设置页与侧边栏入口）不受影响。
@@ -127,7 +156,7 @@ npm test             # 11 组测试 + 可达性审计
 
 ---
 
-## 快速开始
+## 快速开始（GitHub 模块）
 
 1. 打开 **设置 › Push**，点「+ 添加新账号」，粘贴一个 GitHub Personal Access Token
 2. 用 `dsh` 在任意 Git 仓库目录里开会话，右侧栏打开 **Push**

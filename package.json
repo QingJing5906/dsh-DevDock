@@ -1,7 +1,7 @@
 {
   "name": "dsh-harness-push",
   "version": "1.0.2",
-  "description": "DeepSeek Harness 的 GitHub 与 Git 管理插件：多账号登录切换、仓库浏览与管理、工作区版本树、一键推送、推送前 Agent 审查。",
+  "description": "DevDock 套件的 GitHub / Git 模块：多账号登录切换、仓库浏览与管理、工作区版本树、一键推送、推送前 Agent 审查。",
   "type": "module",
   "main": "index.js",
   "exports": {
@@ -38,7 +38,12 @@
     "version-control",
     "code-review",
     "agent",
-    "release"
+    "release",
+    "devdock",
+    "cloudflare",
+    "npm",
+    "dashboard",
+    "account-management"
   ],
   "repository": {
     "type": "git",
