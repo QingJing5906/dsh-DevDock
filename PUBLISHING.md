@@ -38,6 +38,17 @@ npm login
 npm whoami
 ```
 
+> **2FA 是硬性要求**：npm 明确拒绝无 2FA 的发布
+> （`Two-factor authentication or granular access token with bypass 2fa enabled is required to publish packages`）。
+> 两条可行路径：
+>
+> 1. **交互式发布**（推荐）：`npm login` 后执行 `npm publish`，终端会提示输入认证器里的 6 位码。
+> 2. **令牌发布**：在 npm → Access Tokens 创建 **Granular Access Token**，勾选
+>    **Bypass two-factor authentication**，权限选 *Read and write*，只授权 `dsh-harness-push`。
+>    **没有勾选该选项的令牌只能读、不能发布**（已实测被 403 拒绝）。
+>
+> 令牌一律当作密码对待：不要贴进聊天、不要写进仓库；用完即删、怀疑泄漏立刻吊销。
+
 ### 每次发版
 
 ```powershell
@@ -45,17 +56,17 @@ cd dsh-push
 
 # 1. 确认工作区干净、测试全过
 git status --short          # 应为空
-npm test                    # 11 组测试 + 可达性审计
+npm test                    # 14 组测试 + 可达性审计
 
 # 2. 升版本号（遵循语义化版本）
-npm version patch           # 修 bug：1.0.0 -> 1.0.1
-# npm version minor         # 加功能：1.0.0 -> 1.1.0
-# npm version major         # 破坏性变更：1.0.0 -> 2.0.0
+npm version patch           # 修 bug：1.0.1 -> 1.0.2
+# npm version minor         # 加功能：1.0.2 -> 1.1.0
+# npm version major         # 破坏性变更：1.0.2 -> 2.0.0
 
 # 3. 先看会打包进什么（不发布）
 npm pack --dry-run
 
-# 4. 发布（prepublishOnly 会自动再跑一遍测试）
+# 4. 发布（prepublishOnly 会自动再跑一遍测试；会提示输入 2FA 码）
 npm publish
 
 # 5. 把 tag 推上去
