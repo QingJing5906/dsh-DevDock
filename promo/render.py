@@ -155,7 +155,6 @@ def blit_shot(base, name, alpha, scale, dy, shadow_strength):
 
     canvas = shadow.copy()
     canvas.alpha_composite(content)
-    pad_t = PAD * scale
     left = int(round(CX - tw / 2.0))
     top = int(round(CY - th / 2.0 + dy + 0))
     base.paste(canvas, (left, top), canvas)
@@ -375,8 +374,6 @@ def extract_stills():
 def main():
     total_frames = int(round(TOTAL * FPS))
     print("total %.2fs, %d frames" % (TOTAL, total_frames))
-    for _, n, _ in SCENES:
-        pass
     print("scenes:", ", ".join("%s@%.2f" % (n, s) for n, s in zip(NAMES, START)))
 
     cmd = [FFMPEG, "-y", "-loglevel", "error",
