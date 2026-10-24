@@ -32,16 +32,16 @@ if not os.path.exists(FFMPEG):
 MP4 = os.path.join(HERE, "devdock-promo.mp4")
 
 # ---- screenshot composition (identical rule for every shot in the film) ----
-MAX_W, MAX_H = 1180, 640        # content box
-BAND_TOP, BAND_BOT = 350, 990   # shot band; bottom air = 90px
+MAX_W, MAX_H = 1180, 614        # content box (max 1180x640 per brief)
+BAND_TOP, BAND_BOT = 376, 990   # shot band; bottom air = 90px
 CX, CY = W // 2, (BAND_TOP + BAND_BOT) // 2
 RADIUS = 12                     # 12px corners
-SHADOW_ALPHA = 0.13             # 13% black
-SHADOW_BLUR = 14                # gaussian radius (12-18)
-SHADOW_DY = 8                   # offset down 6-10px
+SHADOW_ALPHA = 0.14             # 14% black
+SHADOW_BLUR = 13                # gaussian radius (12-18)
+SHADOW_DY = 7                   # offset down 6-10px
 PAD = 60                        # room for blur + offset inside the asset canvas
 SS = 2                          # supersample factor for the asset
-MAX_UPSCALE = 2.0               # keep small shots from turning to mush
+MAX_UPSCALE = 2.2               # keep small shots from turning to mush
 
 
 @functools.lru_cache(maxsize=64)
@@ -138,14 +138,15 @@ def shot_asset(name):
 def blit_shot(base, name, alpha, scale, dy, shadow_strength):
     """alpha 0-1, scale 1.0 = resting size, dy = extra downward px."""
     a = shot_asset(name)
-    tw, th = max(1, int(round(a["size"][0] * scale))), max(1, int(round(a["size"][1] * scale)))
+    tw = max(1, int(round(a["size"][0] / SS * scale)))
+    th = max(1, int(round(a["size"][1] / SS * scale)))
     content = a["content"].resize((tw, th), Image.LANCZOS)
     shadow = a["shadow"].resize((tw, th), Image.LANCZOS)
 
     def mul_alpha(img, f):
         if f >= 0.999:
             return img
-        ch = img.split()
+        ch = list(img.split())
         ch[3] = ch[3].point(lambda v: int(v * f))
         return Image.merge("RGBA", ch)
 
@@ -316,7 +317,7 @@ SCENES = [
     (9.4, "push", lambda t: scene_shot(
         t, "03", "推 送 前 审 查", "推送前先过一遍",
         ["规则扫描必跑，抓令牌、私钥与本机路径；模型审查按勾选的项目可选。"],
-        [(1.05, "push-tab", 4.15), (4.30, "review", None)])),
+        [(1.05, "push-tab", 3.90), (4.25, "review", None)])),
     (7.0, "manage", lambda t: scene_shot(
         t, "04", "仓 库 管 理", "仓库管理在一处",
         ["概览指标、topics、语言与许可，在一个弹窗里改完。"],

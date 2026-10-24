@@ -1823,7 +1823,14 @@ window.__ModuleLoader__.load({
 .dsh-push-rv-badge { font-size: 11px; padding: 0 5px; border-radius: 5px;
   color: var(--dsw-alias-state-error-primary);
   border: 1px solid var(--dsw-alias-state-error-primary); }
-/* ── 平台切换 ─────────────────────────────────────────────────────── */
+/* 设置页：顶部固定平台切换器，正文是当前平台自己的一页。 */
+.dsh-push-settings-head { flex: none; display: flex; align-items: center;
+  gap: 8px; padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1); }
+.dsh-push-settings-body { display: flex; flex-direction: column; gap: 10px;
+  padding: 10px 12px 16px; }
+
+/* ── 平台切换 ─────────────────────────────────────────────────────── *//* ── 平台切换 ─────────────────────────────────────────────────────── */
 .dsh-push-pswitch { position: relative; display: inline-flex; }
 .dsh-push-pswitch-btn { display: inline-flex; align-items: center; gap: 6px;
   font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
@@ -4350,7 +4357,13 @@ window.__ModuleLoader__.load({
     function SettingsSection(props) {
             const ctx = props.ctx;
       // 字号与间距的全局缩放，四档界面共用同一个值。
-      const [density, setDensity] = useDensity(); const [state, setState] = useState(null);
+      const [density, setDensity] = useDensity();
+      // 设置页自己也记一个平台；三个入口互不影响。
+      const [platform, setPlatform] = useState(() => readPlatform('settings'));
+      const switchPlatform = (id) => {
+        setPlatform(id);
+        writePlatform('settings', id);
+      }; const [state, setState] = useState(null);
       const [draft, setDraft] = useState({ oauthClientId: '', gitPath: '', defaultRemote: 'origin', showPrivate: true });
       const [error, setError] = useState('');
       const [busy, setBusy] = useState(false);
@@ -4664,7 +4677,19 @@ window.__ModuleLoader__.load({
         ];
       }
 
+      /* npm 有自己的一页：只显示 npm 的账号与包，不混进 GitHub 的内容。 */
+      if (platform === 'npm') {
+        return h('div', { className: 'dsh-push-root dsh-push-settings', style: densityStyle(density) },
+          h('div', { className: 'dsh-push-settings-head' },
+            h(PlatformSwitcher, { value: platform, onChange: switchPlatform })),
+          h('div', { className: 'dsh-push-settings-body' },
+            h(NpmSection, { ctx })));
+      }
+
       return h('div', { className: 'dsh-push-root dsh-push-settings', style: densityStyle(density) },
+        // GitHub 的一页，顶部同样有平台切换器。
+        h('div', { className: 'dsh-push-settings-head' },
+          h(PlatformSwitcher, { value: platform, onChange: switchPlatform })),
         /* ── accounts ── */
         h('div', { className: 'dsh-push-group' },
           h('div', { className: 'dsh-push-group-head' },
@@ -4696,8 +4721,6 @@ window.__ModuleLoader__.load({
             }),
           ]
           : null,
-        h(NpmSection, { ctx }),
-
         state && !gitAvailable
           ? h('div', { className: 'dsh-push-error' }, t('errGitMissing'))
           : null,
@@ -4822,12 +4845,6 @@ function writePlatform(surface, id) {
   writeViewPref('platform.' + surface, id);
 }
 
-/** 当前平台的显示名，供 sidebar 的 label thunk 使用。 */
-function platformLabel(surface) {
-  const id = readPlatform(surface);
-  const found = PLATFORMS.find((platform) => platform.id === id);
-  return found ? found.label : 'GitHub';
-}
 
 /** npm 标记：品牌红底 + 三个字母，和 GitHub 的八爪猫一样是「可辨识的图标」。 */
 function NpmMark(props) {
@@ -4840,6 +4857,28 @@ function NpmMark(props) {
       fontSize: Math.max(6, Math.round(size * 0.46)) + 'px',
     },
   }, 'npm');
+}
+
+/**
+ * 套件标记：一个托盘 + 三格内容。
+ *
+ * 三个入口（设置 / 左侧栏 / 工作区标签页）都用它，因为这三个入口代表的
+ * 是「DevDock 这个套件」，平台是在里面切换的。用平台图标当入口图标会
+ * 造成"入口叫 DevDock、图标却是 npm"的错位。
+ */
+function DevDockMark(props) {
+  const size = (props && props.size) || 16;
+  return h('svg', {
+    width: size, height: size, viewBox: '0 0 24 24',
+    'aria-hidden': 'true',
+    style: { display: 'block' },
+  },
+    h('rect', { x: 2.6, y: 2.6, width: 18.8, height: 18.8, rx: 5,
+      fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7 }),
+    h('rect', { x: 6.2, y: 13.6, width: 3.6, height: 4.2, rx: 1.1, fill: 'currentColor' }),
+    h('rect', { x: 10.2, y: 13.6, width: 3.6, height: 4.2, rx: 1.1, fill: 'currentColor', opacity: 0.55 }),
+    h('rect', { x: 14.2, y: 13.6, width: 3.6, height: 4.2, rx: 1.1, fill: 'currentColor', opacity: 0.3 }),
+    h('rect', { x: 6.2, y: 7.4, width: 11.6, height: 3.2, rx: 1.1, fill: 'currentColor', opacity: 0.85 }));
 }
 
 /** 按平台 id 渲染对应标记。 */
@@ -4945,10 +4984,14 @@ function densityStyle(value) {
 }
 
 function SidebarIcon(props) {
+      // 入口代表 DevDock 套件，平台在面板里切换，所以用稳定的品牌标记。
+      // 之前用平台图标 + 动态 label 行不通：宿主导航只在注册时读一次 label，
+      // 切平台不会让它重新投影，图标和名称会停在旧值上。
       return h('span', {
         className: 'dsh-push-sb-icon',
         'data-active': props && props.active ? 'true' : 'false',
-      }, h(GithubMark, { size: (props && props.size) || 16 }));
+        title: 'DevDock',
+      }, h(DevDockMark, { size: (props && props.size) || 16 }));
     }
 
     /* ───────────── npm 模块：账号与包（只读） ───────────── */
@@ -8295,8 +8338,8 @@ function ReviewDialog(props) {
             name: 'sidebar.panellist',
             id: 'push',
             order: 2,
-            // 侧栏显示当前平台名；label 是 thunk，切换后下一次投影就更新。
-      label: () => platformLabel('panel'),
+            // 入口名固定为套件名；平台在面板顶部切换。
+      label: () => 'DevDock',
           }, (props) => h(SidebarIcon, props));
 
           let offPage = null;
@@ -8338,7 +8381,8 @@ function ReviewDialog(props) {
       const registerWorkspaceTab = (sidebar) => {
         const dispose = sidebar.registerTab({
           id: 'push',
-          title: () => t('tabTitle'),
+          // 标签页同样以套件命名，平台在页内切换。
+      title: () => 'DevDock',
           description: () => t('tabDesc'),
           order: 40,
           single: true,

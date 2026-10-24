@@ -25,8 +25,11 @@ const check = (label, ok, detail) => checks.push({ label, ok: Boolean(ok), detai
   // 三个入口各自的 surface 名
   check("左侧面板用 'panel'", src.includes("readPlatform('panel')"));
   check("工作区标签页用 'tab'", src.includes("readPlatform('tab')"));
-  check("侧栏 label 跟随平台", src.includes("label: () => platformLabel('panel')"));
-  check('侧栏图标跟随平台', src.includes('h(PlatformMark, { id: platform'));
+  // 三个入口代表套件本身，名字固定；平台在入口内部切换。
+  const devdockLabels = (src.match(/label: \(\) => 'DevDock'/g) || []).length;
+  check('设置与侧栏两个入口都以 DevDock 命名', devdockLabels === 2, String(devdockLabels));
+  check('工作区标签页以 DevDock 命名', src.includes("title: () => 'DevDock'"));
+  check('侧栏图标用套件标记', src.includes('h(DevDockMark, { size: (props && props.size)'));
 }
 
 /* ---- 2. 真实渲染两个分支 ---- */
@@ -152,6 +155,15 @@ const PROPS = {
   for (const entry of registered) render(entry.component, 0, out);
   check('npm 分支渲染无 ReferenceError', out.errors.length === 0, [...new Set(out.errors)].join(' | '));
   check('npm 分支渲染出了 npm 标记', out.sawNpmMark === true);
+}
+
+/* ---- 3. 设置页：顶部切换器 + 每个平台独立一页 ---- */
+{
+  check('设置页有自己的平台记忆', src.includes("readPlatform('settings')"));
+  check('设置页顶部有切换器', src.includes("className: 'dsh-push-settings-head'"));
+  check('npm 有独立一页', src.includes("if (platform === 'npm')") && src.includes('dsh-push-settings-body'));
+  check('GitHub 页不再混入 npm 分区',
+    (src.match(/h\(NpmSection, \{ ctx \}\)/g) || []).length === 2);
 }
 
 let failed = 0;
