@@ -1823,7 +1823,38 @@ window.__ModuleLoader__.load({
 .dsh-push-rv-badge { font-size: 11px; padding: 0 5px; border-radius: 5px;
   color: var(--dsw-alias-state-error-primary);
   border: 1px solid var(--dsw-alias-state-error-primary); }
-/* ── npm 包详情 ───────────────────────────────────────────────────── */
+/* ── 平台切换 ─────────────────────────────────────────────────────── */
+.dsh-push-pswitch { position: relative; display: inline-flex; }
+.dsh-push-pswitch-btn { display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  padding: 4px 8px; border-radius: 7px;
+  border: 1px solid transparent; background: transparent;
+  color: var(--dsw-alias-label-primary); }
+.dsh-push-pswitch-btn:hover { background: var(--dsw-alias-bg-layer-2);
+  border-color: var(--dsw-alias-border-l1); }
+.dsh-push-pswitch-label { line-height: 1; }
+/* 菜单浮在内容之上，不挤压布局。 */
+.dsh-push-pswitch-menu { position: absolute; top: calc(100% + 4px); left: 0;
+  z-index: 30; min-width: 150px; padding: 4px; display: flex;
+  flex-direction: column; gap: 2px; border-radius: 8px;
+  background: var(--dsw-alias-bg-overlay);
+  border: 1px solid var(--dsw-alias-border-l1);
+  box-shadow: 0 8px 24px #0000001F; }
+.dsh-push-pswitch-item { display: flex; align-items: center; gap: 8px;
+  font: inherit; font-size: 12px; cursor: pointer; text-align: left;
+  padding: 6px 8px; border-radius: 6px; border: 0; background: transparent;
+  color: var(--dsw-alias-label-primary); }
+.dsh-push-pswitch-item:hover { background: var(--dsw-alias-bg-layer-2); }
+.dsh-push-pswitch-item.is-on { color: var(--dsw-alias-brand-primary); }
+.dsh-push-pswitch-item > span:nth-child(2) { flex: 1 1 auto; }
+
+/* npm 标记：品牌红底，和 GitHub 的八爪猫一样是可辨识的图标。 */
+.dsh-push-npm-mark { display: inline-flex; align-items: center;
+  justify-content: center; border-radius: 3px; flex: none;
+  background: #CB3837; color: #FFFFFF; font-weight: 700;
+  letter-spacing: -0.02em; font-family: Georgia, serif; }
+
+/* ── npm 包详情 ───────────────────────────────────────────────────── *//* ── npm 包详情 ───────────────────────────────────────────────────── */
 .dsh-push-npm-detail { display: flex; flex-direction: column; gap: 2px;
   padding: 6px 0 2px; flex-basis: 100%; }
 .dsh-push-npm-version { display: flex; align-items: center; gap: 6px;
@@ -4768,7 +4799,97 @@ window.__ModuleLoader__.load({
 
     /* ───────────── B1. sidebar.panellist icon ───────────────────────────── */
 
-    /* ───────────── 信息密度（个性化：字号 + 间距） ───────────── */
+    /* ───────────── 平台（DevDock 套件的模块切换） ───────────── */
+
+/**
+ * 套件里可切换的模块。
+ *
+ * 入口数量是固定的：设置页一个、左侧栏一个、工作区标签页一个。加平台只
+ * 增加这里的条目，不增加界面入口——这是「不占空间」的实现方式。
+ */
+const PLATFORMS = [
+  { id: 'github', label: 'GitHub' },
+  { id: 'npm', label: 'npm' },
+];
+
+/** 每个入口各自记住自己的平台：在设置页切到 npm 不该影响工作区标签页。 */
+function readPlatform(surface) {
+  const raw = readViewPref('platform.' + surface, 'github');
+  return PLATFORMS.some((platform) => platform.id === raw) ? raw : 'github';
+}
+
+function writePlatform(surface, id) {
+  writeViewPref('platform.' + surface, id);
+}
+
+/** 当前平台的显示名，供 sidebar 的 label thunk 使用。 */
+function platformLabel(surface) {
+  const id = readPlatform(surface);
+  const found = PLATFORMS.find((platform) => platform.id === id);
+  return found ? found.label : 'GitHub';
+}
+
+/** npm 标记：品牌红底 + 三个字母，和 GitHub 的八爪猫一样是「可辨识的图标」。 */
+function NpmMark(props) {
+  const size = (props && props.size) || 16;
+  return h('span', {
+    className: 'dsh-push-npm-mark',
+    style: {
+      width: size + 'px',
+      height: size + 'px',
+      fontSize: Math.max(6, Math.round(size * 0.46)) + 'px',
+    },
+  }, 'npm');
+}
+
+/** 按平台 id 渲染对应标记。 */
+function PlatformMark(props) {
+  const id = props && props.id;
+  const size = (props && props.size) || 14;
+  if (id === 'npm') return h(NpmMark, { size });
+  return h(GithubMark, { size });
+}
+
+/**
+ * 平台下拉。
+ *
+ * 侧栏图标只有 16px，放不下菜单；所以下拉按钮出现在「点开后的标题行」，
+ * 图标本身只跟随当前平台变化。
+ *
+ * @param {{value: string, onChange: (id: string) => void, compact?: boolean}} props
+ */
+function PlatformSwitcher(props) {
+  const [open, setOpen] = useState(false);
+  const current = PLATFORMS.find((platform) => platform.id === props.value) || PLATFORMS[0];
+  return h('div', { className: 'dsh-push-pswitch' },
+    h('button', {
+      type: 'button',
+      className: 'dsh-push-pswitch-btn' + (props.compact ? ' dsh-push-pswitch-btn--compact' : ''),
+      'aria-haspopup': 'listbox',
+      'aria-expanded': open ? 'true' : 'false',
+      onClick: () => setOpen((value) => !value),
+    },
+      h(PlatformMark, { id: current.id, size: 14 }),
+      h('span', { className: 'dsh-push-pswitch-label' }, current.label),
+      h(Icon, { name: 'chevron', size: 12 })),
+
+    open
+      ? h('div', { className: 'dsh-push-pswitch-menu', role: 'listbox' },
+        PLATFORMS.map((platform) => h('button', {
+          key: platform.id,
+          type: 'button',
+          role: 'option',
+          'aria-selected': platform.id === current.id ? 'true' : 'false',
+          className: 'dsh-push-pswitch-item' + (platform.id === current.id ? ' is-on' : ''),
+          onClick: () => { setOpen(false); props.onChange(platform.id); },
+        },
+          h(PlatformMark, { id: platform.id, size: 14 }),
+          h('span', null, platform.label),
+          platform.id === current.id ? h(Icon, { name: 'check', size: 12 }) : null)))
+      : null);
+}
+
+/* ───────────── 信息密度（个性化：字号 + 间距） ───────────── */
 
 /** 允许的缩放区间。低于 0.85 会挤到看不清，高于 1.25 在小面板里会溢出。 */
 const DENSITY_MIN = 85;
@@ -4884,7 +5005,8 @@ function NpmSection(props) {
     await loadPackages();
   }, [loadAccounts, loadPackages]);
 
-  useEffect(() => { reload(); }, [reload]);
+  // reloadKey 让父级（面板头部的刷新按钮）能触发一次重新读取。
+  useEffect(() => { reload(); }, [reload, props.reloadKey]);
 
   const run = async (label, action) => {
     setBusy(label);
@@ -5015,7 +5137,14 @@ function NpmSection(props) {
 
     function ReposPage(props) {
             const ctx = props.ctx;
-      const [density] = useDensity(); const [state, setState] = useState(null);
+      const [density] = useDensity();
+      // 本入口自己的平台记忆；切走再回来保持原选择。
+      const [platform, setPlatform] = useState(() => readPlatform('panel'));
+      const [npmReload, setNpmReload] = useState(0);
+      const switchPlatform = (id) => {
+        setPlatform(id);
+        writePlatform('panel', id);
+      }; const [state, setState] = useState(null);
       const [repos, setRepos] = useState([]);
       const [query, setQuery] = useState('');
       const [search, setSearch] = useState('');
@@ -5253,9 +5382,24 @@ function NpmSection(props) {
             : null);
       };
 
+      /* npm 视图：面板头部保留同一个切换器，正文换成 npm 的账号与包列表。
+       * 两个平台共用同一个入口，入口数量不随平台增加。 */
+      if (platform === 'npm') {
+        return h('div', { className: 'dsh-push-root dsh-push-page', style: densityStyle(density) },
+          h('div', { className: 'dsh-push-page-head' },
+            h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
+            h('span', { className: 'dsh-push-page-spacer' }),
+            h(Btn, { mini: true, onClick: () => setNpmReload((n) => n + 1), title: t('refresh') },
+              h(Icon, { name: 'refresh', size: 12 }))),
+          h('div', { className: 'dsh-push-page-body' },
+            h(NpmSection, { ctx, reloadKey: npmReload })));
+      }
+
       return h('div', { className: 'dsh-push-root dsh-push-page', style: densityStyle(density) },
         h('div', { className: 'dsh-push-page-head' },
-          h('span', { className: 'dsh-push-page-title' }, t('pageTitle')),
+          // 标题位置放平台切换器：它同时说明「现在看的是哪个平台」和
+          // 「可以切到哪」，比一个静态标题信息量更大。
+          h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
           h('span', { className: 'dsh-push-page-spacer' }),
           loggedIn && active
             ? h('span', { className: 'dsh-push-inline' },
@@ -7266,6 +7410,12 @@ function ReviewDialog(props) {
     function WorkspaceTab(props) {
             const ctx = props.ctx;
       const [density] = useDensity(); const visible = props.visible !== false;
+      // 工作区标签页也各有自己的平台记忆。
+      const [platform, setPlatform] = useState(() => readPlatform('tab'));
+      const switchPlatform = (id) => {
+        setPlatform(id);
+        writePlatform('tab', id);
+      };
       // `repoRoot` is the selected Git repository when `cwd` is a workspace
       // container holding several; it is the path git commands must target,
       // while `cwd` alone would be the folder that merely contains them.
@@ -7631,6 +7781,18 @@ function ReviewDialog(props) {
         onReviewed: (result) => setReviewResult(result),
       });
 
+      /* npm 不是「目录」概念，所以这个入口在 npm 模式下不看 cwd：
+       * 直接给账号与包列表，避免出现一个永远空着的 Git 面板。 */
+      if (platform === 'npm') {
+        return h('div', { className: 'dsh-push-root dsh-push-tab', style: densityStyle(density) },
+          reviewDialog,
+          h('div', { className: 'dsh-push-tab-head' },
+            h('div', { className: 'dsh-push-tab-repo' },
+              h(PlatformSwitcher, { value: platform, onChange: switchPlatform }))),
+          h('div', { className: 'dsh-push-scroll' },
+            h(NpmSection, { ctx })));
+      }
+
       /* ── no workspace path: nothing can be asked of git without one ── */
       if (!cwd) {
         return h('div', { className: 'dsh-push-root dsh-push-tab', style: densityStyle(density) },
@@ -7710,7 +7872,7 @@ function ReviewDialog(props) {
         /* ── repo line ── */
         h('div', { className: 'dsh-push-tab-head' },
           h('div', { className: 'dsh-push-tab-repo' },
-            h(GithubMark, { size: 14 }),
+            h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
             h('span', { className: 'dsh-push-tab-repo-name', title: cwd },
               status && status.githubRemote
                 ? status.githubRemote.owner + '/' + status.githubRemote.repo
@@ -8133,8 +8295,8 @@ function ReviewDialog(props) {
             name: 'sidebar.panellist',
             id: 'push',
             order: 2,
-            // 侧栏显示当前平台名，而不是一个含义模糊的 Push。
-      label: () => 'GitHub',
+            // 侧栏显示当前平台名；label 是 thunk，切换后下一次投影就更新。
+      label: () => platformLabel('panel'),
           }, (props) => h(SidebarIcon, props));
 
           let offPage = null;

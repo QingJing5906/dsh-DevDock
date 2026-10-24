@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
-"""DevDock promo: pure-typography motion piece rendered with Pillow -> ffmpeg."""
-import os, sys, math, functools
-from PIL import Image, ImageDraw, ImageFont
+"""DevDock promo v2: editorial typography + real UI screenshots (rounded, soft shadow,
+enter animation), rendered with Pillow and piped straight into ffmpeg (no audio track).
+
+Run:  python render.py
+Out:  promo/devdock-promo.mp4  +  promo/frames/frame-0N-*.png
+"""
+import os, sys, functools, subprocess
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 
 W, H = 1920, 1080
 FPS = 30
@@ -9,6 +14,7 @@ BG = (245, 244, 238)
 INK = (25, 25, 25)
 ACC = (217, 119, 87)
 STONE = (184, 178, 167)
+BORDER = (227, 223, 214)          # #E3DFD6 hairline around screenshots
 
 F_CN = "C:/Windows/Fonts/msyhbd.ttc"
 F_CNR = "C:/Windows/Fonts/msyh.ttc"
@@ -16,8 +22,26 @@ F_GEO = "C:/Windows/Fonts/georgia.ttf"
 F_GEB = "C:/Windows/Fonts/georgiab.ttf"
 F_MONO = "C:/Windows/Fonts/consola.ttf"
 
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frames_raw")
-os.makedirs(OUT, exist_ok=True)
+HERE = os.path.dirname(os.path.abspath(__file__))
+SHOTS = os.path.join(HERE, "shots")
+OUT = os.path.join(HERE, "frames_raw")
+FRAMES = os.path.join(HERE, "frames")
+FFMPEG = r"C:\ffmpeg-8.0.1-essentials_build\bin\ffmpeg.exe"
+if not os.path.exists(FFMPEG):
+    FFMPEG = "ffmpeg"
+MP4 = os.path.join(HERE, "devdock-promo.mp4")
+
+# ---- screenshot composition (identical rule for every shot in the film) ----
+MAX_W, MAX_H = 1180, 640        # content box
+BAND_TOP, BAND_BOT = 350, 990   # shot band; bottom air = 90px
+CX, CY = W // 2, (BAND_TOP + BAND_BOT) // 2
+RADIUS = 12                     # 12px corners
+SHADOW_ALPHA = 0.13             # 13% black
+SHADOW_BLUR = 14                # gaussian radius (12-18)
+SHADOW_DY = 8                   # offset down 6-10px
+PAD = 60                        # room for blur + offset inside the asset canvas
+SS = 2                          # supersample factor for the asset
+MAX_UPSCALE = 2.0               # keep small shots from turning to mush
 
 
 @functools.lru_cache(maxsize=64)
@@ -67,14 +91,73 @@ def new_layer():
 
 
 def compose(layer):
-    base = Image.new("RGB", (W, H), BG)
-    base.paste(Image.alpha_composite(base.convert("RGBA"), layer).convert("RGB"), (0, 0))
-    return base
+    base = Image.new("RGBA", (W, H), BG + (255,))
+    return Image.alpha_composite(base, layer).convert("RGB")
 
 
 LEFT = 300
 RIGHT = 1620
 BOT = 980
+
+
+# ------------------------------------------------------------------ screenshots
+@functools.lru_cache(maxsize=16)
+def shot_asset(name):
+    """Scale a shot into the 1180x640 box, round the corners, build a soft shadow."""
+    src = Image.open(os.path.join(SHOTS, name + ".png")).convert("RGB")
+    sw, sh = src.size
+    cap = MAX_UPSCALE if sw < 700 else 1e9
+    s = min(MAX_W / sw, MAX_H / sh, cap)
+    dw, dh = int(round(sw * s)), int(round(sh * s))
+
+    cw, ch = (dw + 2 * PAD) * SS, (dh + 2 * PAD) * SS
+    big = src.resize((dw * SS, dh * SS), Image.LANCZOS)
+
+    mask = Image.new("L", (cw, ch), 0)
+    md = ImageDraw.Draw(mask)
+    x0, y0 = PAD * SS, PAD * SS
+    md.rounded_rectangle([x0, y0, x0 + dw * SS - 1, y0 + dh * SS - 1],
+                         radius=RADIUS * SS, fill=255)
+
+    content = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    content.paste(big, (x0, y0))
+    content.putalpha(mask)
+    bd = ImageDraw.Draw(content)
+    bd.rounded_rectangle([x0 + 0.5, y0 + 0.5, x0 + dw * SS - 1.5, y0 + dh * SS - 1.5],
+                         radius=RADIUS * SS, outline=BORDER + (255,), width=SS)
+
+    blurred = mask.filter(ImageFilter.GaussianBlur(radius=SHADOW_BLUR * SS))
+    shifted = ImageChops.offset(blurred, 0, SHADOW_DY * SS)
+    shadow = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    shadow.putalpha(shifted.point(lambda v: int(v * SHADOW_ALPHA)))
+
+    return {"content": content, "shadow": shadow, "size": (cw, ch),
+            "dw": dw, "dh": dh}
+
+
+def blit_shot(base, name, alpha, scale, dy, shadow_strength):
+    """alpha 0-1, scale 1.0 = resting size, dy = extra downward px."""
+    a = shot_asset(name)
+    tw, th = max(1, int(round(a["size"][0] * scale))), max(1, int(round(a["size"][1] * scale)))
+    content = a["content"].resize((tw, th), Image.LANCZOS)
+    shadow = a["shadow"].resize((tw, th), Image.LANCZOS)
+
+    def mul_alpha(img, f):
+        if f >= 0.999:
+            return img
+        ch = img.split()
+        ch[3] = ch[3].point(lambda v: int(v * f))
+        return Image.merge("RGBA", ch)
+
+    shadow = mul_alpha(shadow, alpha * shadow_strength)
+    content = mul_alpha(content, alpha)
+
+    canvas = shadow.copy()
+    canvas.alpha_composite(content)
+    pad_t = PAD * scale
+    left = int(round(CX - tw / 2.0))
+    top = int(round(CY - th / 2.0 + dy + 0))
+    base.paste(canvas, (left, top), canvas)
 
 
 # ---------------------------------------------------------------- scene 1: open
@@ -97,7 +180,7 @@ def scene_open(t):
     a3 = ease((t - 2.4) / 0.9)
     w = track_width(font(F_GEB, 26), "DevDock", 1)
     draw_tracked(d, (RIGHT - w, BOT - 30), "DevDock", font(F_GEB, 26), STONE, 1, int(255 * a3))
-    return ly
+    return compose(ly)
 
 
 # ------------------------------------------------------------- scene 2: friction
@@ -122,40 +205,56 @@ def scene_friction(t):
     a1 = ease((t - 3.7) / 1.0)
     rule(d, LEFT, 830, int(120 * a1), 1, STONE, int(200 * a1))
     d.text((LEFT, 860), "成本不在推送本身，在来回切换之间", font=font(F_CNR, 30), fill=STONE + (int(255 * a1),))
-    return ly
+    return compose(ly)
 
 
-# ------------------------------------------------------- scenes 3-5: highlights
-def scene_highlight(t, idx, label, keyword, desc_lines):
+# ------------------------------------------------------ scenes 3-6: shot + copy
+def scene_shot(t, idx, label, headline, desc_lines, shots):
+    """shots: [(t_in, name, t_out_or_None)] -- one visible at a time."""
+    base = Image.new("RGB", (W, H), BG)
+    for t_in, name, t_out in shots:
+        if t < t_in:
+            continue
+        e = ease((t - t_in) / 1.0)
+        op = e
+        if t_out is not None and t > t_out:
+            op *= (1 - ease((t - t_out) / 0.3))
+        if op <= 0.001:
+            continue
+        blit_shot(base, name, op,
+                  scale=0.98 + 0.02 * e,     # 1.00 -> 1.02 worth of growth, max 2%
+                  dy=14 * (1 - e),           # 14px -> 0
+                  shadow_strength=0.60 + 0.40 * e)
+
     ly = new_layer()
     d = ImageDraw.Draw(ly)
 
-    a0 = ease((t - 0.1) / 0.7)
-    d.text((LEFT, 340), idx, font=font(F_GEB, 30), fill=ACC + (int(255 * a0),))
-    draw_tracked(d, (LEFT + 62, 350), label, font(F_CNR, 20), STONE, 3, int(255 * a0))
-    rule(d, LEFT + 62, 388, int(560 * ease((t - 0.2) / 1.4)), 1, STONE, int(150 * a0))
+    a0 = ease((t - 0.10) / 0.70)
+    d.text((LEFT, 92), idx, font=font(F_GEB, 28), fill=ACC + (int(255 * a0),))
+    draw_tracked(d, (LEFT + 62, 102), label, font(F_CNR, 19), STONE, 3, int(255 * a0))
+    rule(d, LEFT + 62, 140, int(600 * ease((t - 0.15) / 1.3)), 1, STONE, int(150 * a0))
 
-    g = ease((t - 0.55) / 1.1)
-    rule(d, LEFT, 436, int(150 * g), 3, ACC)
+    g = ease((t - 0.30) / 1.0)
+    rule(d, LEFT, 178, int(120 * g), 3, ACC)
 
-    a1 = ease((t - 0.5) / 0.95)
-    dy = int(12 * (1 - a1))
-    f = font(F_CN, 88)
-    d.text((LEFT, 482 + dy), keyword, font=f, fill=INK + (int(255 * a1),))
+    a1 = ease((t - 0.35) / 0.95)
+    dy = int(14 * (1 - a1))
+    d.text((LEFT, 206 + dy), headline, font=font(F_CN, 64), fill=INK + (int(255 * a1),))
 
-    a2 = ease((t - 1.15) / 1.05)
+    a2 = ease((t - 0.90) / 1.0)
     dy2 = int(10 * (1 - a2))
-    text_block(d, (LEFT, 650 + dy2), desc_lines, font(F_CNR, 32), STONE, int(255 * a2), 52)
-    return ly
+    text_block(d, (LEFT, 306 + dy2), desc_lines, font(F_CNR, 27), STONE, int(255 * a2), 46)
+
+    return Image.alpha_composite(base.convert("RGBA"), ly).convert("RGB")
 
 
-# ------------------------------------------------------------- scene 6: one core
+# ------------------------------------------------------------- scene 7: one core
 def scene_same(t):
     ly = new_layer()
     d = ImageDraw.Draw(ly)
 
     a0 = ease((t - 0.05) / 0.7)
-    d.text((LEFT, 320), "04", font=font(F_GEB, 30), fill=ACC + (int(255 * a0),))
+    d.text((LEFT, 320), "05", font=font(F_GEB, 30), fill=ACC + (int(255 * a0),))
     draw_tracked(d, (LEFT + 62, 330), "人 和 AI", font(F_CNR, 20), STONE, 3, int(255 * a0))
     rule(d, LEFT + 62, 368, int(560 * ease((t - 0.2) / 1.3)), 1, STONE, int(150 * a0))
 
@@ -174,10 +273,10 @@ def scene_same(t):
 
     a4 = ease((t - 2.6) / 1.0)
     d.text((LEFT, 806), "同一份账号与凭据，同一套推送与审查", font=font(F_CNR, 28), fill=STONE + (int(255 * a4),))
-    return ly
+    return compose(ly)
 
 
-# ---------------------------------------------------------------- scene 7: close
+# ---------------------------------------------------------------- scene 8: close
 def scene_close(t):
     ly = new_layer()
     d = ImageDraw.Draw(ly)
@@ -200,28 +299,40 @@ def scene_close(t):
     a4 = ease((t - 2.8) / 1.0)
     d.text((LEFT, 736), "当前模块 GitHub / Git（npm: dsh-harness-push）；后续接入 Cloudflare 与 npm",
            font=font(F_CNR, 28), fill=STONE + (int(255 * a4),))
-    return ly
+    return compose(ly)
 
 
 SCENES = [
-    (5.0, scene_open),
-    (6.0, scene_friction),
-    (7.0, lambda t: scene_highlight(t, "01", "多 账 号", "多账号，下拉即切",
-                                    ["账号卡片显示头像、昵称与权限范围；切换后所有面板立刻跟随，", "不用重启。其它账号也看不到令牌原文。"])),
-    (7.0, lambda t: scene_highlight(t, "02", "推 送 前 审 查", "推送前过一遍",
-                                    ["规则扫描必跑，抓令牌、私钥与本机路径；模型审查按勾选的项目可选。", "发现阻断级问题只警告，不阻止推送。"])),
-    (7.0, lambda t: scene_highlight(t, "03", "记 忆 与 版 本 树", "每条分支都记得",
-                                    ["记住上次推送到哪个仓库、哪个 ref，回到分支自动带出。", "提交图带 lane 连线与 ref 标签，任意节点可检出、打标签。"])),
-    (7.0, scene_same),
-    (7.0, scene_close),
+    (4.6, "open", scene_open),
+    (5.2, "friction", scene_friction),
+    (8.0, "accounts", lambda t: scene_shot(
+        t, "01", "多 账 号", "多账号，下拉即切",
+        ["账号卡片带头像、昵称与权限范围；切换后所有面板立刻跟随，不用重启。"],
+        [(1.05, "account-card", None)])),
+    (8.0, "cards", lambda t: scene_shot(
+        t, "02", "仓 库 视 图", "仓库一眼看完",
+        ["卡片视图带语言占比条与 star、fork；列表与卡片两种密度随时切换。"],
+        [(1.05, "cards", None)])),
+    (9.4, "push", lambda t: scene_shot(
+        t, "03", "推 送 前 审 查", "推送前先过一遍",
+        ["规则扫描必跑，抓令牌、私钥与本机路径；模型审查按勾选的项目可选。"],
+        [(1.05, "push-tab", 4.15), (4.30, "review", None)])),
+    (7.0, "manage", lambda t: scene_shot(
+        t, "04", "仓 库 管 理", "仓库管理在一处",
+        ["概览指标、topics、语言与许可，在一个弹窗里改完。"],
+        [(1.05, "manage", None)])),
+    (6.0, "same", scene_same),
+    (6.2, "close", scene_close),
 ]
 
+NAMES = [n for _, n, _ in SCENES]
 START = []
 _s = 0.0
-for dur, _ in SCENES:
+for dur, _, _ in SCENES:
     START.append(_s)
     _s += dur
 TOTAL = _s
+START_T = dict(zip(NAMES, START))
 XF = 0.32
 
 
@@ -230,23 +341,59 @@ def frame_at(t):
     for k in range(len(SCENES)):
         if t >= START[k] - 1e-9:
             i = k
-    dur, fn = SCENES[i]
-    cur = compose(fn(min(t - START[i], dur)))
+    dur, _, fn = SCENES[i]
+    cur = fn(min(t - START[i], dur))
     if i > 0 and (t - START[i]) < XF:
-        pdur, pfn = SCENES[i - 1]
-        prev = compose(pfn(pdur))
+        pdur, _, pfn = SCENES[i - 1]
+        prev = pfn(pdur)
         cur = Image.blend(prev, cur, ease((t - START[i]) / XF))
     return cur
 
 
+# ---------------------------------------------------------------- frame stills
+STILLS = [
+    ("frame-01-open.png", lambda: START_T["open"] + 2.9),
+    ("frame-02-accounts.png", lambda: START_T["accounts"] + 5.4),
+    ("frame-03-cards.png", lambda: START_T["cards"] + 5.4),
+    ("frame-04-push.png", lambda: START_T["push"] + 3.3),
+    ("frame-05-review.png", lambda: START_T["push"] + 8.1),
+    ("frame-06-close.png", lambda: START_T["close"] + 4.6),
+]
+
+
+def extract_stills():
+    os.makedirs(FRAMES, exist_ok=True)
+    for name, tb in STILLS:
+        ts = tb()
+        out = os.path.join(FRAMES, name)
+        subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-ss", "%.3f" % ts,
+                        "-i", MP4, "-frames:v", "1", out], check=True)
+        print("still %-26s t=%.2fs" % (name, ts))
+
+
 def main():
-    n = int(round(TOTAL * FPS))
-    print("total %.2fs, %d frames" % (TOTAL, n))
-    for k in range(n):
+    total_frames = int(round(TOTAL * FPS))
+    print("total %.2fs, %d frames" % (TOTAL, total_frames))
+    for _, n, _ in SCENES:
+        pass
+    print("scenes:", ", ".join("%s@%.2f" % (n, s) for n, s in zip(NAMES, START)))
+
+    cmd = [FFMPEG, "-y", "-loglevel", "error",
+           "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "%dx%d" % (W, H), "-r", str(FPS), "-i", "-",
+           "-an", "-c:v", "libx264", "-preset", "slow", "-crf", "18",
+           "-pix_fmt", "yuv420p", "-r", str(FPS), "-movflags", "+faststart", MP4]
+    p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    for k in range(total_frames):
         img = frame_at(k / float(FPS))
-        img.save(os.path.join(OUT, "f%05d.png" % k), optimize=False)
+        p.stdin.write(img.tobytes())
         if k % 150 == 0:
-            print("frame", k)
+            print("frame", k, "/", total_frames)
+    p.stdin.close()
+    rc = p.wait()
+    if rc != 0:
+        raise SystemExit("ffmpeg failed: %d" % rc)
+    print("encoded", MP4)
+    extract_stills()
     print("done")
 
 

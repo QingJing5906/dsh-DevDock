@@ -112,8 +112,11 @@ for (const [needle, label] of roots) {
   const around = idx >= 0 ? src.slice(idx, idx + 160) : '';
   check(`${label}根容器应用了密度`, around.includes('densityStyle(density)'), needle);
 }
+// 标签页有多个返回分支（无目录 / 非仓库 / 正常 / npm），数量会随功能增加。
+// 断言「所有分支都应用了密度」，而不是写死一个会过期的数字。
+const tabRoots = (src.match(/className: 'dsh-push-root dsh-push-tab'/g) || []).length;
 const tabApplied = (src.match(/className: 'dsh-push-root dsh-push-tab', style: densityStyle\(density\)/g) || []).length;
-check('工作区标签页三个分支都应用了密度', tabApplied === 3, `找到 ${tabApplied} 处`);
+check('工作区标签页每个分支都应用了密度', tabRoots > 0 && tabApplied === tabRoots, `${tabApplied}/${tabRoots}`);
 
 /* ---- 7. 控件本身是无极的 ---- */
 check('滑杆用 range 类型', src.includes("className: 'dsh-push-density-slider'") && src.includes("type: 'range'"));
