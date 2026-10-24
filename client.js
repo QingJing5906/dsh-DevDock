@@ -362,6 +362,22 @@ window.__ModuleLoader__.load({
       npmPreflightTitle: "发布前自检",
       npmPreflightOk: "可以发布",
       npmPreflightBlocked: "有阻断项",
+      npmInitTitle: "创建 package.json",
+      npmInitHint: "这个目录还没有 package.json。填个包名就能开始，之后可以继续改。",
+      npmInitNamePlaceholder: "包名（小写，可留空用目录名）",
+      npmInitAction: "创建",
+      npmPackTitle: "打包",
+      npmPackSummary: "共 {n} 个文件 · {size}",
+      npmPackFiles: "文件",
+      npmPackSize: "压缩后",
+      npmPackUnpacked: "解压后",
+      npmPackMore: "还有 {n} 个较小的文件未显示",
+      npmPackAction: "生成压缩包",
+      npmPacked: "已生成 {file}",
+      npmPublishHint: "发布会读取这个目录的 package.json，版本号取自其中的 version。",
+      npmOtpPlaceholder: "6 位验证码",
+      npmPublishAction: "发布到 npm",
+      npmPublished: "已发布 {name}@{version}",
       rvTitle: "推送前审查",
       rvClose: "关闭",
       rvSettings: "设置",
@@ -873,6 +889,22 @@ window.__ModuleLoader__.load({
       npmPreflightTitle: "Publish preflight",
       npmPreflightOk: "Ready to publish",
       npmPreflightBlocked: "Blocked",
+      npmInitTitle: "Create package.json",
+      npmInitHint: "This directory has no package.json yet. Enter a name to start.",
+      npmInitNamePlaceholder: "Package name (lowercase, blank = folder name)",
+      npmInitAction: "Create",
+      npmPackTitle: "Pack",
+      npmPackSummary: "{n} files · {size}",
+      npmPackFiles: "Files",
+      npmPackSize: "Tarball",
+      npmPackUnpacked: "Unpacked",
+      npmPackMore: "{n} smaller files not shown",
+      npmPackAction: "Build tarball",
+      npmPacked: "Created {file}",
+      npmPublishHint: "Publishing reads this directory's package.json; the version comes from its version field.",
+      npmOtpPlaceholder: "6-digit code",
+      npmPublishAction: "Publish to npm",
+      npmPublished: "Published {name}@{version}",
       rvTitle: "Pre-push review",
       rvClose: "Close",
       rvSettings: "Settings",
@@ -1678,6 +1710,11 @@ window.__ModuleLoader__.load({
 .dsh-push-page-foot { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 16px;
   border-top: 1px solid var(--dsw-alias-border-l1); flex-wrap: wrap; }
 .dsh-push-search { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; flex: 1 1 220px;
+/* 面板内的搜索框：不拉伸、更矮，和旁边的按钮同高。
+ * 宽页面版（上面那条）用的是 1 1 220px，在侧栏里会被撑满整行。 */
+.dsh-push-search--compact { flex: 1 1 auto; min-width: 0; max-width: none;
+  height: 24px; padding: 0 6px; border-radius: 6px; gap: 5px; }
+.dsh-push-search--compact input { font-size: 12px; }
   border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-secondary); }
 .dsh-push-search input { flex: 1 1 auto; min-width: 0; height: 100%; border: 0; outline: none;
@@ -1986,7 +2023,25 @@ window.__ModuleLoader__.load({
 .dsh-push-npm-check-msg { font-size: 12px;
   color: var(--dsw-alias-label-primary); }
 
-/* 包详情：事实行 / 安装命令 / 依赖名 + 依赖检查面板，统一一套视觉。 *//* 包详情：事实行 / 安装命令 / 依赖名 + 依赖检查面板，统一一套视觉。 */
+/* 初始化卡片 */
+.dsh-push-npm-init { display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px 12px; }
+
+/* 打包审查：文件按体积倒序，等宽字体便于对齐路径 */
+.dsh-push-npm-pack { display: flex; flex-direction: column; gap: 6px;
+  padding: 4px 0 8px; }
+.dsh-push-npm-packfiles { display: flex; flex-direction: column; gap: 1px;
+  padding: 2px 0; max-height: 220px; overflow: auto; }
+.dsh-push-npm-packfile { display: flex; align-items: baseline; gap: 10px;
+  padding: 2px 2px; border-bottom: 1px solid var(--dsw-alias-border-l1); }
+.dsh-push-npm-packfile:last-child { border-bottom: none; }
+.dsh-push-npm-packfile > :first-child { flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px; }
+.dsh-push-npm-packfile > :last-child { flex: none;
+  font-variant-numeric: tabular-nums; }
+
+/* 包详情：事实行 / 安装命令 / 依赖名 + 依赖检查面板，统一一套视觉。 *//* 包详情：事实行 / 安装命令 / 依赖名 + 依赖检查面板，统一一套视觉。 *//* 包详情：事实行 / 安装命令 / 依赖名 + 依赖检查面板，统一一套视觉。 */
 .dsh-push-npm-facts { display: flex; flex-wrap: wrap; gap: 6px;
   padding: 8px 0 6px; }
 .dsh-push-npm-fact { display: inline-flex; align-items: baseline; gap: 5px;
@@ -4415,7 +4470,7 @@ window.__ModuleLoader__.load({
           h(Btn, { mini: true, onClick: props.onOpenAll }, t('openAll'))),
 
         h('div', { className: 'dsh-push-inline' },
-          h('div', { className: 'dsh-push-search' },
+          h('div', { className: 'dsh-push-search dsh-push-search--compact' },
             h(Icon, { name: 'search', size: 12 }),
             h('input', {
               type: 'text',
@@ -5465,7 +5520,7 @@ function NpmSearchPanel(props) {
       : null,
     openName === pkg.name && detail ? detailBlock(pkg) : null);
 
-  const searchRow = h('div', { className: 'dsh-push-search dsh-push-npm-searchrow' },
+  const searchRow = h('div', { className: 'dsh-push-search dsh-push-search--compact dsh-push-npm-searchrow' },
     h(Icon, { name: 'search', size: 13 }),
     h('input', {
       type: 'text',
@@ -5506,6 +5561,208 @@ function NpmSearchPanel(props) {
     error ? h('div', { className: 'dsh-push-error' }, error) : null,
     meta,
     body);
+}
+
+/**
+ * 目录里还没有 package.json 时显示的一张卡片。
+ *
+ * 之前这里只写「没有 package.json」，然后就没有下一步——一个空目录等于
+ * 走到死路。现在直接给出创建入口：填个名字就能开始。
+ *
+ * @param {{ctx: object, cwd: string, onCreated: () => void}} props
+ */
+function NpmInitCard(props) {
+  const ctx = props.ctx;
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const create = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await api(ctx, API + '/npm/init', {
+        method: 'POST',
+        body: { path: props.cwd, name: name.trim() },
+      });
+      if (typeof props.onCreated === 'function') props.onCreated();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return h('div', { className: 'dsh-push-group' },
+    h('div', { className: 'dsh-push-group-head' },
+      h('span', null, t('npmInitTitle'))),
+    h('div', { className: 'dsh-push-npm-init' },
+      h('div', { className: 'dsh-push-hint' }, t('npmInitHint')),
+      h('div', { className: 'dsh-push-inline' },
+        h('input', {
+          className: 'dsh-push-input',
+          type: 'text',
+          value: name,
+          placeholder: t('npmInitNamePlaceholder'),
+          spellCheck: false,
+          style: { width: '220px' },
+          onChange: (e) => setName(e.target.value),
+        }),
+        h(Btn, { kind: 'primary', disabled: busy, onClick: create },
+          busy ? t('loading') : t('npmInitAction'))),
+      error ? h('div', { className: 'dsh-push-error' }, error) : null));
+}
+
+/**
+ * 打包审查：把 npm 会收进包里的文件列出来，按体积倒序。
+ *
+ * 打包前能看见「哪些文件进去了」是本插件相对命令行的主要价值——
+ * `npm pack --dry-run` 的输出是给人扫一眼的，不是给界面用的。
+ *
+ * @param {{ctx: object, cwd: string}} props
+ */
+function NpmPackPanel(props) {
+  const ctx = props.ctx;
+  const cwd = props.cwd || '';
+  const [report, setReport] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const inspect = useCallback(async () => {
+    if (cwd === '') return;
+    setBusy(true);
+    setError('');
+    try {
+      const data = await api(ctx, API + '/npm/pack?path=' + encodeURIComponent(cwd));
+      setReport(data);
+    } catch (err) {
+      setError(err.message);
+      setReport(null);
+    } finally {
+      setBusy(false);
+    }
+  }, [ctx, cwd]);
+
+  useEffect(() => { inspect(); }, [inspect]);
+
+  const build = async () => {
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const data = await api(ctx, API + '/npm/pack', {
+        method: 'POST',
+        body: { path: cwd },
+      });
+      setNotice(t('npmPacked', { file: data.filename }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const files = (report && report.files) || [];
+  const top = files.slice(0, 12);
+
+  const row = (entry) => h('div', { key: entry.path, className: 'dsh-push-npm-packfile' },
+    h('span', { className: 'dsh-push-mono' }, entry.path),
+    h('span', { className: 'dsh-push-hint' }, formatBytes(entry.size)));
+
+  return h('div', { className: 'dsh-push-group' },
+    h('div', { className: 'dsh-push-group-head' },
+      h('span', null, t('npmPackTitle')),
+      h('div', { className: 'dsh-push-inline' },
+        report
+          ? h('span', { className: 'dsh-push-row-hint' },
+            t('npmPackSummary', { n: report.totalFiles, size: formatBytes(report.size) }))
+          : null,
+        h(Btn, { mini: true, disabled: busy, onClick: inspect }, t('refresh')))),
+
+    error ? h('div', { className: 'dsh-push-error' }, error) : null,
+    notice ? h('div', { className: 'dsh-push-ok' }, notice) : null,
+
+    report
+      ? h('div', { className: 'dsh-push-npm-pack' },
+        h('div', { className: 'dsh-push-npm-facts' },
+          packageFact(t('npmPackFiles'), String(report.totalFiles)),
+          packageFact(t('npmPackSize'), formatBytes(report.size)),
+          packageFact(t('npmPackUnpacked'), formatBytes(report.unpackedSize))),
+        h('div', { className: 'dsh-push-npm-packfiles' }, top.map(row)),
+        files.length > top.length
+          ? h('div', { className: 'dsh-push-row-hint' },
+            t('npmPackMore', { n: files.length - top.length }))
+          : null,
+        h('div', { className: 'dsh-push-inline' },
+          h(Btn, { kind: 'primary', disabled: busy, onClick: build },
+            busy ? t('loading') : t('npmPackAction'))))
+      : (busy ? h('div', { className: 'dsh-push-hint' }, t('loading')) : null),
+    h(NpmPublishRow, { ctx, cwd }));
+}
+
+/**
+ * 发布到 npm。
+ *
+ * 需要 2FA 的账号在第一次发布时会拿到 EOTP；那时把验证码输入框摆出来，
+ * 而不是让用户对着一个红字错误自己猜。
+ *
+ * @param {{ctx: object, cwd: string}} props
+ */
+function NpmPublishRow(props) {
+  const ctx = props.ctx;
+  const cwd = props.cwd || '';
+  const [otp, setOtp] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [needOtp, setNeedOtp] = useState(false);
+
+  const publish = async () => {
+    if (cwd === '') return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const data = await api(ctx, API + '/npm/publish', {
+        method: 'POST',
+        body: { path: cwd, otp: otp.trim() },
+      });
+      setNotice(t('npmPublished', { name: data.name, version: data.version }));
+      setNeedOtp(false);
+      setOtp('');
+    } catch (err) {
+      // 需要验证码时把输入框露出来，其余错误原样显示。
+      if (err.code === 'UNAUTHORIZED') setNeedOtp(true);
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return h('div', { className: 'dsh-push-npm-publish' },
+    h('div', { className: 'dsh-push-row-hint' }, t('npmPublishHint')),
+    needOtp
+      ? h('div', { className: 'dsh-push-inline' },
+        h('input', {
+          className: 'dsh-push-input',
+          type: 'text',
+          value: otp,
+          placeholder: t('npmOtpPlaceholder'),
+          inputMode: 'numeric',
+          maxLength: 8,
+          style: { width: '110px' },
+          onChange: (e) => setOtp(e.target.value),
+        }))
+      : null,
+    h('div', { className: 'dsh-push-inline' },
+      h(Btn, {
+        kind: 'primary',
+        disabled: busy || (needOtp && otp.trim() === ''),
+        onClick: publish,
+      }, busy ? t('loading') : t('npmPublishAction'))),
+    error ? h('div', { className: 'dsh-push-error' }, error) : null,
+    notice ? h('div', { className: 'dsh-push-ok' }, notice) : null);
 }
 
 /* ───────────── npm 工作区（仅右侧标签页：这个项目自己的事） ───────────── */
@@ -5554,6 +5811,13 @@ function NpmProjectPanel(props) {
 
   if (cwd === '') return h('div', { className: 'dsh-push-hint' }, t('npmDepsNoCwd'));
 
+  /* 没有 package.json：给出创建入口，而不是一句死路提示。 */
+  if (!busy && !manifest && !preflight && error) {
+    return h('div', { className: 'dsh-push-npm-project' },
+      h(NpmInitCard, { ctx, cwd, onCreated: load }),
+      h('div', { className: 'dsh-push-hint' }, error));
+  }
+
   const TONE = {
     fail: 'dsh-push-sev--blocker',
     warn: 'dsh-push-sev--medium',
@@ -5599,6 +5863,7 @@ function NpmProjectPanel(props) {
 
   return h('div', { className: 'dsh-push-npm-project' },
     group,
+    h(NpmPackPanel, { ctx, cwd }),
     h(NpmDepsSection, { ctx, cwd }));
 }
 

@@ -65,7 +65,7 @@ deleteRepo,
 } from './github.js';
 
 // 工作区依赖检查需要读本地 package.json。
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 // DevDock 的 npm 模块（只读：认账号、列包、看版本）。
@@ -77,6 +77,9 @@ import {
   npmSearchText,
   npmPackageStatus,
 } from './npm.js';
+
+// 真正运行 npm（打包 / 发布）：文件筛选规则由 npm 自己算，才和用户手动执行一致。
+import { NpmRunner, npmAuthEnv, parsePackJson, mapPackResult } from './npmcli.js';
 import {
   GitError,
   GitRunner,
@@ -2367,7 +2370,148 @@ export class GithubLinkHost extends ServiceClass {
     };
   }
 
+  /* ---------------- npm CLI: 初始化 / 打包 / 发布 ---------------- */
+
+  /** @returns {NpmRunner} 复用同一个执行器（二进制与超时只解析一次）。 */
+  #npmRunner() {
+    if (!this.#npmRunnerCache) this.#npmRunnerCache = new NpmRunner();
+    return this.#npmRunnerCache;
+  }
+
+  #npmRunnerCache = null;
+
   /**
+   * `POST /npm/init` — 给一个还没有 package.json 的目录生成一份。
+   *
+   * 只在文件不存在时写，绝不覆盖：一个已有 package.json 的目录被意外
+   * 重置，代价远大于省掉一次手动创建。
+   *
+   * @param {{path?: string, name?: string, version?: string}} body
+   * @returns {Promise<object>}
+   */
+  async npmInit(body) {
+    const dir = typeof body.path === 'string' && body.path.trim() !== ''
+      ? body.path.trim()
+      : process.cwd();
+    const file = path.join(dir, 'package.json');
+
+    try {
+      await readFile(file, 'utf8');
+      throw httpError(409, 'BAD_REQUEST', '这个目录已经有 package.json 了，不会覆盖它。');
+    } catch (error) {
+      if (error && error.code !== 'ENOENT' && !error.status) throw error;
+      if (error && error.status) throw error;
+    }
+
+    // 默认包名取目录名：npm 只接受小写与有限字符，先规范化再判断。
+    const fallback = path.basename(dir).toLowerCase().replace(/[^a-z0-9._~-]+/g, '-').replace(/^-+|-+$/g, '');
+    const name = typeof body.name === 'string' && body.name.trim() !== ''
+      ? body.name.trim()
+      : (fallback === '' ? 'my-package' : fallback);
+    const version = typeof body.version === 'string' && body.version.trim() !== ''
+      ? body.version.trim()
+      : '0.1.0';
+
+    const doc = {
+      name,
+      version,
+      description: '',
+      main: 'index.js',
+      scripts: { test: 'echo "no test specified" && exit 1' },
+      keywords: [],
+      license: 'MIT',
+      files: ['index.js'],
+    };
+
+    try {
+      await writeFile(file, JSON.stringify(doc, null, 2) + '\n', 'utf8');
+    } catch (error) {
+      throw httpError(500, 'INTERNAL', `无法写入 package.json：${error.message}`);
+    }
+
+    return { path: file, created: true, name, version };
+  }
+
+  /**
+   * `GET /npm/pack` — 预演打包：npm 会收进哪些文件、多大。
+   *
+   * 只跑 `--dry-run`，不落任何文件。这是「打包审查」的数据来源。
+   *
+   * @param {{path?: string}} query
+   * @returns {Promise<object>}
+   */
+  async npmPackInspect(query) {
+    const dir = typeof query.path === 'string' && query.path.trim() !== ''
+      ? query.path.trim()
+      : process.cwd();
+    const runner = this.#npmRunner();
+    const result = await runner.run(['pack', '--dry-run', '--json'], { cwd: dir });
+    const packed = mapPackResult(parsePackJson(result.stdout));
+    return { ...packed, dryRun: true };
+  }
+
+  /**
+   * `POST /npm/pack` — 真正生成 .tgz。
+   *
+   * @param {{path?: string}} body
+   * @returns {Promise<object>}
+   */
+  async npmPack(body) {
+    const dir = typeof body.path === 'string' && body.path.trim() !== ''
+      ? body.path.trim()
+      : process.cwd();
+    const runner = this.#npmRunner();
+    const result = await runner.run(['pack', '--json'], { cwd: dir });
+    const packed = mapPackResult(parsePackJson(result.stdout));
+    return { ...packed, dryRun: false, path: path.join(dir, packed.filename) };
+  }
+
+  /**
+   * `POST /npm/publish` — 发布到 npm。
+   *
+   * 需要 2FA 的账号必须带 otp；没有 otp 时 npm 的报错会被原样翻译成一句
+   * 可执行的提示，而不是让用户对着 EOTP 发呆。
+   *
+   * @param {{path?: string, otp?: string, tag?: string}} body
+   * @returns {Promise<object>}
+   */
+  async npmPublish(body) {
+    const account = await this.#store.activeNpmAccount();
+    if (!account) {
+      throw httpError(401, 'NO_ACCOUNT', '还没有登录 npm，请先在设置 › npm 添加令牌。');
+    }
+    const dir = typeof body.path === 'string' && body.path.trim() !== ''
+      ? body.path.trim()
+      : process.cwd();
+
+    const args = ['publish', '--json'];
+    if (typeof body.tag === 'string' && body.tag.trim() !== '') args.push('--tag', body.tag.trim());
+    const otp = typeof body.otp === 'string' ? body.otp.trim() : '';
+    if (otp !== '') args.push('--otp', otp);
+
+    const runner = this.#npmRunner();
+    try {
+      const result = await runner.run(args, {
+        cwd: dir,
+        env: npmAuthEnv(account.token),
+      });
+      const packed = mapPackResult(parsePackJson(result.stdout));
+      await this.#store.touchNpmAccount(account.id);
+      return { published: true, name: packed.name, version: packed.version };
+    } catch (error) {
+      const text = `${error.stderr || ''} ${error.message || ''}`;
+      if (/EOTP|one-time password|two-factor/i.test(text)) {
+        throw httpError(401, 'UNAUTHORIZED', '这次发布需要一次性验证码（2FA）：请在发布对话框里填入 6 位验证码后重试。');
+      }
+      if (/E403|403 Forbidden|cannot publish over/i.test(text)) {
+        throw httpError(403, 'FORBIDDEN', error.message);
+      }
+      throw httpError(500, 'INTERNAL', error.message);
+    }
+  }
+
+  /**
+   * `GET /npm/search` — 按关键词搜索 npm 上的包。  /**
    * `GET /npm/search` — 按关键词搜索 npm 上的包。
    *
    * 公开数据，不要求登录；有账号时带上令牌，私有包才搜得到。
@@ -2969,6 +3113,10 @@ function buildRoutes(host) {
         size: Number(query('size')) || undefined,
       }),
     })),
+    post('/npm/init', async ({ body }) => ({ data: await host.npmInit(body) })),
+    get('/npm/pack', async ({ query }) => ({ data: await host.npmPackInspect({ path: query('path') }) })),
+    post('/npm/pack', async ({ body }) => ({ data: await host.npmPack(body) })),
+    post('/npm/publish', async ({ body }) => ({ data: await host.npmPublish(body) })),
     get('/npm/preflight', async ({ query }) => ({
       data: await host.npmPreflight({ path: query('path') }),
     })),
