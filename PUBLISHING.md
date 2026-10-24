@@ -8,7 +8,7 @@
 
 | 渠道 | 状态 | 说明 |
 |---|---|---|
-| GitHub 仓库 | ✅ 已发布 | <https://github.com/QingJing5906/dsh-push>（公开） |
+| GitHub 仓库 | ✅ 已发布 | <https://github.com/QingJing5906/dsh-DevDock>（公开） |
 | GitHub Release `v1.0.0` | ✅ 已发布 | 含 `dsh-harness-push-1.0.0.tgz` 附件 |
 | npm | ⬜ 待发布 | 需要 npm 账号；包名已定为 `dsh-harness-push` |
 | DSH 插件市场 | ⬜ 待接入 | 本机 DSH 未配置任何市场索引；索引由用户自行添加 |
@@ -128,7 +128,7 @@ DSH 的插件市场索引指向 npm 包。因此顺序是：
 | `name` | `dsh-harness-push` |
 | `description` | DeepSeek Harness 的 GitHub 与 Git 管理插件：多账号登录切换、仓库浏览与管理、工作区版本树、一键推送、推送前 Agent 审查。 |
 | `keywords` | `dsh`, `dsh-plugin`, `deepseek-harness`, `github`, `git`, `push`, `version-control`, `code-review`, `agent`, `release` |
-| `repository` | https://github.com/QingJing5906/dsh-push |
+| `repository` | https://github.com/QingJing5906/dsh-DevDock |
 | `license` | MIT |
 
 仓库的 topics 已设置为：

@@ -143,7 +143,7 @@ dsh plugin --profile desktop add "<插件目录>\dsh-push"
 ### 从源码构建
 
 ```powershell
-git clone https://github.com/QingJing5906/dsh-push.git
+git clone https://github.com/QingJing5906/dsh-DevDock.git
 cd dsh-push
 npm install          # 仅测试需要，插件本身零运行时依赖
 npm test             # 11 组测试 + 可达性审计

@@ -15,7 +15,7 @@ import { GithubError } from './github.js';
 /** 默认 registry；可用环境变量指向镜像或测试服务器。 */
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 
-const USER_AGENT = 'dsh-devdock (+https://github.com/QingJing5906/dsh-push)';
+const USER_AGENT = 'dsh-devdock (+https://github.com/QingJing5906/dsh-DevDock)';
 
 /**
  * 当前 registry 基地址。
@@ -282,6 +282,8 @@ export function mapPackument(raw, fallbackName = '') {
   });
 
   const latestEntry = latestVersion !== '' ? (versions[latestVersion] || {}) : {};
+  // 发布目标的体积与文件数在 dist 上，是"这个包有多大"唯一可靠的来源。
+  const latestDist = (latestEntry.dist && typeof latestEntry.dist === 'object') ? latestEntry.dist : {};
   const repository = latestEntry.repository;
   const repositoryUrl = typeof repository === 'string'
     ? repository
@@ -313,13 +315,49 @@ export function mapPackument(raw, fallbackName = '') {
     versions: rows,
     versionCount: rows.length,
     deprecatedVersions: rows.filter((row) => row.deprecated !== '').length,
+    // 下面这些让包详情在本地就能看全，不必跳去 npmjs.com。
+    dependencies: latestEntry.dependencies && typeof latestEntry.dependencies === 'object'
+      ? latestEntry.dependencies : {},
+    peerDependencies: latestEntry.peerDependencies && typeof latestEntry.peerDependencies === 'object'
+      ? latestEntry.peerDependencies : {},
+    engines: latestEntry.engines && typeof latestEntry.engines === 'object'
+      ? latestEntry.engines : {},
+    unpackedSize: Number.isFinite(latestDist.unpackedSize) ? latestDist.unpackedSize : null,
+    fileCount: Number.isFinite(latestDist.fileCount) ? latestDist.fileCount : null,
+    tarball: typeof latestDist.tarball === 'string' ? latestDist.tarball : '',
+    integrity: typeof latestDist.integrity === 'string' ? latestDist.integrity : '',
     htmlUrl: `https://www.npmjs.com/package/${encodeURIComponent(
       typeof doc.name === 'string' ? doc.name : fallbackName,
     )}`,
   };
 }
 
-/** 包在 npmjs.com 上的页面地址。 */
+/**
+ * 只取一个包的最新版本号。
+ *
+ * `/-/package/<name>/dist-tags` 返回的是一个极小的对象，比整份 packument
+ * 小两个数量级——检查一个项目的全部依赖时，这个差别决定了能不能秒回。
+ *
+ * @param {{name: string, token?: string, timeoutMs?: number}} options
+ * @returns {Promise<{name: string, latest: string|null, error?: string}>}
+ */
+export async function npmLatestVersion(options) {
+  const name = String(options.name ?? '').trim();
+  if (name === '') return { name, latest: null, error: 'BAD_NAME' };
+  try {
+    const path = `/-/package/${encodeURIComponent(name).replace('%40', '@').replace('%2F', '/')}/dist-tags`;
+    const response = await request({ path, token: options.token, timeoutMs: options.timeoutMs ?? 12_000 });
+    if (response.status !== 200) {
+      return { name, latest: null, error: response.status === 404 ? 'NOT_FOUND' : 'HTTP_' + response.status };
+    }
+    const latest = response.json && typeof response.json.latest === 'string' ? response.json.latest : null;
+    return { name, latest };
+  } catch (error) {
+    return { name, latest: null, error: error && error.code ? error.code : 'NETWORK' };
+  }
+}
+
+/** 包在 npmjs.com 上的页面地址。 *//** 包在 npmjs.com 上的页面地址。 */
 export function packageHtmlUrl(name) {
   return `https://www.npmjs.com/package/${encodeURIComponent(String(name ?? ''))}`;
 }

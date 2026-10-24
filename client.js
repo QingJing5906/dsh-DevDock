@@ -323,6 +323,26 @@ window.__ModuleLoader__.load({
       npmVersionCount: "共 {n} 个版本",
       npmLatest: "latest",
       npmDeprecated: "已废弃",
+      platformSwitch: "切换",
+      platformSwitchTo: "切换平台",
+      npmDepsTitle: "工作区依赖",
+      npmDepsSummary: "共 {total} 个 · {outdated} 个有更新",
+      npmDepsNoCwd: "当前没有工作区目录。",
+      npmDepsReading: "正在读取 package.json 并比对线上版本…",
+      npmDepsEmpty: "这个 package.json 里没有依赖。",
+      npmDepOutdated: "有更新",
+      npmDepCurrent: "已最新",
+      npmDepUnknown: "读取失败",
+      npmDepGroupOutdated: "可更新",
+      npmDepGroupCurrent: "已是最新",
+      npmDepGroupFailed: "读取失败",
+      npmFactVersions: "版本",
+      npmFactSize: "体积",
+      npmFactFiles: "文件",
+      npmFactLicense: "许可",
+      npmFactDeps: "依赖",
+      npmCopyInstall: "复制安装命令",
+      npmDepsOfLatest: "最新版依赖",
       rvTitle: "推送前审查",
       rvClose: "关闭",
       rvSettings: "设置",
@@ -795,6 +815,26 @@ window.__ModuleLoader__.load({
       npmVersionCount: "{n} versions",
       npmLatest: "latest",
       npmDeprecated: "deprecated",
+      platformSwitch: "Switch",
+      platformSwitchTo: "Switch platform",
+      npmDepsTitle: "Workspace dependencies",
+      npmDepsSummary: "{total} total · {outdated} with updates",
+      npmDepsNoCwd: "No workspace directory.",
+      npmDepsReading: "Reading package.json and checking the registry…",
+      npmDepsEmpty: "This package.json declares no dependencies.",
+      npmDepOutdated: "Update",
+      npmDepCurrent: "Current",
+      npmDepUnknown: "Failed",
+      npmDepGroupOutdated: "Can update",
+      npmDepGroupCurrent: "Up to date",
+      npmDepGroupFailed: "Failed",
+      npmFactVersions: "Versions",
+      npmFactSize: "Size",
+      npmFactFiles: "Files",
+      npmFactLicense: "License",
+      npmFactDeps: "Deps",
+      npmCopyInstall: "Copy install",
+      npmDepsOfLatest: "Latest dependencies",
       rvTitle: "Pre-push review",
       rvClose: "Close",
       rvSettings: "Settings",
@@ -1832,14 +1872,29 @@ window.__ModuleLoader__.load({
 
 /* ── 平台切换 ─────────────────────────────────────────────────────── *//* ── 平台切换 ─────────────────────────────────────────────────────── */
 .dsh-push-pswitch { position: relative; display: inline-flex; }
+/* 控件本体：始终带描边，一眼能看出是可点的。 */
 .dsh-push-pswitch-btn { display: inline-flex; align-items: center; gap: 6px;
-  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  font: inherit; font-size: 12px; cursor: pointer;
   padding: 4px 8px; border-radius: 7px;
-  border: 1px solid transparent; background: transparent;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary); }
-.dsh-push-pswitch-btn:hover { background: var(--dsw-alias-bg-layer-2);
-  border-color: var(--dsw-alias-border-l1); }
-.dsh-push-pswitch-label { line-height: 1; }
+.dsh-push-pswitch-btn:hover { border-color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-bg-layer-2); }
+.dsh-push-pswitch-btn:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 1px; }
+.dsh-push-pswitch-label { line-height: 1; font-weight: 600; }
+/* 宽形态（设置页）：平台名 + 「切换」+ 下箭头，右侧视觉重心更稳。 */
+.dsh-push-pswitch-btn--wide { padding: 5px 10px; gap: 8px; }
+.dsh-push-pswitch-action { line-height: 1; font-size: 11px;
+  color: var(--dsw-alias-label-secondary);
+  padding-left: 8px;
+  border-left: 1px solid var(--dsw-alias-border-l1); }
+/* 箭头单独给一点左边距，和文字分开才不会读成一串。 */
+.dsh-push-pswitch-caret { display: inline-flex; align-items: center;
+  color: var(--dsw-alias-label-secondary); margin-left: 2px; }
+.dsh-push-pswitch-btn:hover .dsh-push-pswitch-caret {
+  color: var(--dsw-alias-label-primary); }
 /* 菜单浮在内容之上，不挤压布局。 */
 .dsh-push-pswitch-menu { position: absolute; top: calc(100% + 4px); left: 0;
   z-index: 30; min-width: 150px; padding: 4px; display: flex;
@@ -1847,6 +1902,9 @@ window.__ModuleLoader__.load({
   background: var(--dsw-alias-bg-overlay);
   border: 1px solid var(--dsw-alias-border-l1);
   box-shadow: 0 8px 24px #0000001F; }
+.dsh-push-pswitch-menuhead { font-size: 10px; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 4px 8px 2px;
+  color: var(--dsw-alias-label-secondary); }
 .dsh-push-pswitch-item { display: flex; align-items: center; gap: 8px;
   font: inherit; font-size: 12px; cursor: pointer; text-align: left;
   padding: 6px 8px; border-radius: 6px; border: 0; background: transparent;
@@ -1861,7 +1919,53 @@ window.__ModuleLoader__.load({
   background: #CB3837; color: #FFFFFF; font-weight: 700;
   letter-spacing: -0.02em; font-family: Georgia, serif; }
 
-/* ── npm 包详情 ───────────────────────────────────────────────────── *//* ── npm 包详情 ───────────────────────────────────────────────────── */
+/* 包详情：事实行 / 安装命令 / 依赖名 + 依赖检查面板，统一一套视觉。 */
+.dsh-push-npm-facts { display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 0 6px; }
+.dsh-push-npm-fact { display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 3px 8px; border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-2);
+  border: 1px solid var(--dsw-alias-border-l1); }
+.dsh-push-npm-fact-label { font-size: 10px;
+  color: var(--dsw-alias-label-secondary); }
+.dsh-push-npm-fact-value { font-size: 11px; font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+  font-variant-numeric: tabular-nums; }
+
+.dsh-push-npm-install { display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; margin: 2px 0 6px; border-radius: 7px;
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid var(--dsw-alias-border-l1);
+  overflow-x: auto; }
+.dsh-push-npm-install code { flex: 1 1 auto; font-size: 11px;
+  white-space: nowrap; color: var(--dsw-alias-label-primary); }
+
+.dsh-push-npm-deplist { padding: 2px 0 8px; }
+.dsh-push-npm-depnames { display: flex; flex-wrap: wrap; gap: 4px;
+  padding-top: 4px; }
+
+/* 依赖检查：名称 / 范围 / 最新 / 状态 四列，等宽数字对齐。 */
+.dsh-push-npm-deps { display: flex; flex-direction: column; gap: 10px;
+  padding: 6px 0 2px; }
+.dsh-push-npm-depgroup-head { font-size: 10px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--dsw-alias-label-secondary);
+  padding: 4px 0 2px; }
+.dsh-push-npm-dep { display: grid;
+  grid-template-columns: minmax(0, 1.6fr) 78px 74px auto;
+  align-items: center; gap: 8px; padding: 4px 2px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1); }
+.dsh-push-npm-dep:last-child { border-bottom: none; }
+.dsh-push-npm-dep-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.dsh-push-npm-dep-range { font-size: 10px;
+  color: var(--dsw-alias-label-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsh-push-npm-dep-latest { font-size: 10px; text-align: right;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums; }
+
+/* ── npm 包详情 ───────────────────────────────────────────────────── *//* ── npm 包详情 ───────────────────────────────────────────────────── *//* ── npm 包详情 ───────────────────────────────────────────────────── */
 .dsh-push-npm-detail { display: flex; flex-direction: column; gap: 2px;
   padding: 6px 0 2px; flex-basis: 100%; }
 .dsh-push-npm-version { display: flex; align-items: center; gap: 6px;
@@ -2013,6 +2117,8 @@ window.__ModuleLoader__.load({
       check: ['M20 6L9 17l-5-5'],
       close: ['M6 6l12 12', 'M18 6L6 18'],
       chevron: ['M9 6l6 6-6 6'],
+      // 展开/下拉专用的朝下箭头；用朝右的 chevron 会被读成「进入」。
+      chevronDown: ['M6 9l6 6 6-6'],
       gear: [
         'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
         'M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
@@ -4681,7 +4787,7 @@ window.__ModuleLoader__.load({
       if (platform === 'npm') {
         return h('div', { className: 'dsh-push-root dsh-push-settings', style: densityStyle(density) },
           h('div', { className: 'dsh-push-settings-head' },
-            h(PlatformSwitcher, { value: platform, onChange: switchPlatform })),
+            h(PlatformSwitcher, { value: platform, onChange: switchPlatform, variant: 'settings' })),
           h('div', { className: 'dsh-push-settings-body' },
             h(NpmSection, { ctx })));
       }
@@ -4689,7 +4795,7 @@ window.__ModuleLoader__.load({
       return h('div', { className: 'dsh-push-root dsh-push-settings', style: densityStyle(density) },
         // GitHub 的一页，顶部同样有平台切换器。
         h('div', { className: 'dsh-push-settings-head' },
-          h(PlatformSwitcher, { value: platform, onChange: switchPlatform })),
+          h(PlatformSwitcher, { value: platform, onChange: switchPlatform, variant: 'settings' })),
         /* ── accounts ── */
         h('div', { className: 'dsh-push-group' },
           h('div', { className: 'dsh-push-group-head' },
@@ -4866,21 +4972,28 @@ function NpmMark(props) {
  * 是「DevDock 这个套件」，平台是在里面切换的。用平台图标当入口图标会
  * 造成"入口叫 DevDock、图标却是 npm"的错位。
  */
+/** 用户提供的 DevDock 图标（64px 内嵌，避免多一次请求）。 */
+const DEVDOCK_ICON_URI = 'data:image/png;base64,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';
+
+/**
+ * 套件标记。
+ *
+ * 三个入口（设置 / 左侧栏 / 工作区标签页）都用它，因为它们代表的是
+ * 「DevDock 这个套件」，平台是在入口内部切换的。
+ *
+ * 用真实图标而不是手绘形状：品牌标识应当就是用户做的那个，而不是近似品。
+ */
 function DevDockMark(props) {
   const size = (props && props.size) || 16;
-  return h('svg', {
-    width: size, height: size, viewBox: '0 0 24 24',
+  return h('img', {
+    src: DEVDOCK_ICON_URI,
+    width: size,
+    height: size,
+    alt: '',
     'aria-hidden': 'true',
-    style: { display: 'block' },
-  },
-    h('rect', { x: 2.6, y: 2.6, width: 18.8, height: 18.8, rx: 5,
-      fill: 'none', stroke: 'currentColor', 'stroke-width': 1.7 }),
-    h('rect', { x: 6.2, y: 13.6, width: 3.6, height: 4.2, rx: 1.1, fill: 'currentColor' }),
-    h('rect', { x: 10.2, y: 13.6, width: 3.6, height: 4.2, rx: 1.1, fill: 'currentColor', opacity: 0.55 }),
-    h('rect', { x: 14.2, y: 13.6, width: 3.6, height: 4.2, rx: 1.1, fill: 'currentColor', opacity: 0.3 }),
-    h('rect', { x: 6.2, y: 7.4, width: 11.6, height: 3.2, rx: 1.1, fill: 'currentColor', opacity: 0.85 }));
+    style: { display: 'block', borderRadius: Math.round(size * 0.22) + 'px' },
+  });
 }
-
 /** 按平台 id 渲染对应标记。 */
 function PlatformMark(props) {
   const id = props && props.id;
@@ -4897,23 +5010,43 @@ function PlatformMark(props) {
  *
  * @param {{value: string, onChange: (id: string) => void, compact?: boolean}} props
  */
+/**
+ * 平台切换控件。
+ *
+ * 三条来自实际反馈的约束：
+ * 1. 必须带描边——无边框的小图标看不出是个可点的控件；
+ * 2. 必须写出「切换」——只放一个箭头，第一眼不会理解为「切换平台」；
+ * 3. 箭头朝下——朝右的 chevron 会读成「进入」。
+ *
+ * 两种形态按位置取用：
+ * - `variant: 'settings'`：最完整，宽控件，图标 + 平台名 + 「切换」+ 下箭头；
+ * - 默认：窄，图标 + 平台名 + 下箭头，适合侧栏标题行那种寸土寸金的位置。
+ *
+ * @param {{value: string, onChange: (id: string) => void, variant?: string}} props
+ */
 function PlatformSwitcher(props) {
   const [open, setOpen] = useState(false);
   const current = PLATFORMS.find((platform) => platform.id === props.value) || PLATFORMS[0];
+  const wide = props.variant === 'settings';
   return h('div', { className: 'dsh-push-pswitch' },
     h('button', {
       type: 'button',
-      className: 'dsh-push-pswitch-btn' + (props.compact ? ' dsh-push-pswitch-btn--compact' : ''),
+      className: 'dsh-push-pswitch-btn' + (wide ? ' dsh-push-pswitch-btn--wide' : ''),
       'aria-haspopup': 'listbox',
       'aria-expanded': open ? 'true' : 'false',
+      title: t('platformSwitch'),
       onClick: () => setOpen((value) => !value),
     },
       h(PlatformMark, { id: current.id, size: 14 }),
       h('span', { className: 'dsh-push-pswitch-label' }, current.label),
-      h(Icon, { name: 'chevron', size: 12 })),
+      wide
+        ? h('span', { className: 'dsh-push-pswitch-action' }, t('platformSwitch'))
+        : null,
+      h('span', { className: 'dsh-push-pswitch-caret' }, h(Icon, { name: 'chevronDown', size: 12 }))),
 
     open
       ? h('div', { className: 'dsh-push-pswitch-menu', role: 'listbox' },
+        h('div', { className: 'dsh-push-pswitch-menuhead' }, t('platformSwitchTo')),
         PLATFORMS.map((platform) => h('button', {
           key: platform.id,
           type: 'button',
@@ -4927,7 +5060,6 @@ function PlatformSwitcher(props) {
           platform.id === current.id ? h(Icon, { name: 'check', size: 12 }) : null)))
       : null);
 }
-
 /* ───────────── 信息密度（个性化：字号 + 间距） ───────────── */
 
 /** 允许的缩放区间。低于 0.85 会挤到看不清，高于 1.25 在小面板里会溢出。 */
@@ -5114,6 +5246,29 @@ function NpmSection(props) {
         : null),
     openName === pkg.name && detail
       ? h('div', { className: 'dsh-push-npm-detail' },
+        /* 概览：本地就能看全的元信息，不需要去 npmjs.com。 */
+        h('div', { className: 'dsh-push-npm-facts' },
+          packageFact(t('npmFactVersions'), String(detail.versionCount)),
+          packageFact(t('npmFactSize'), formatBytes(detail.unpackedSize)),
+          packageFact(t('npmFactFiles'), detail.fileCount === null ? '—' : String(detail.fileCount)),
+          packageFact(t('npmFactLicense'), detail.license || '—'),
+          packageFact(t('npmFactDeps'), String(Object.keys(detail.dependencies || {}).length))),
+
+        /* 一行就能复制的安装命令，省掉跳转。 */
+        h('div', { className: 'dsh-push-npm-install' },
+          h('code', { className: 'dsh-push-mono' }, 'npm i ' + detail.name + '@' + detail.latestVersion),
+          h(Btn, { mini: true, onClick: () => copyText('npm i ' + detail.name + '@' + detail.latestVersion) },
+            t('npmCopyInstall'))),
+
+        Object.keys(detail.dependencies || {}).length > 0
+          ? h('div', { className: 'dsh-push-npm-deplist' },
+            h('div', { className: 'dsh-push-row-hint' }, t('npmDepsOfLatest')),
+            h('div', { className: 'dsh-push-npm-depnames' },
+              Object.keys(detail.dependencies).slice(0, 24).map((name) =>
+                h('span', { key: name, className: 'dsh-push-pill dsh-push-pill--idle' },
+                  name + ' ' + detail.dependencies[name]))))
+          : null,
+
         h('div', { className: 'dsh-push-row-hint' }, t('npmVersionCount', { n: detail.versionCount })),
         detail.versions.slice(0, 12).map(renderVersion))
       : null);
@@ -5174,6 +5329,139 @@ function NpmSection(props) {
       : packages.length === 0
         ? h('div', { className: 'dsh-push-hint' }, t('npmNoPackages'))
         : h('div', { className: 'dsh-push-rows' }, packages.map(renderPackage)));
+}
+
+/** 一条「标签 : 值」的事实，用于包详情顶部。 */
+function packageFact(label, value) {
+  return h('span', { className: 'dsh-push-npm-fact', key: label },
+    h('span', { className: 'dsh-push-npm-fact-label' }, label),
+    h('span', { className: 'dsh-push-npm-fact-value' }, value));
+}
+
+/** 字节数 → 人类可读；未知时给破折号而不是 0B。 */
+function formatBytes(bytes) {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes <= 0) return '—';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+/** 复制到剪贴板；失败时静默，不给用户弹一个他不关心的错误。 */
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+  } catch { /* 落到下面的兜底 */ }
+  try {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand('copy');
+    area.remove();
+  } catch { /* 忽略 */ }
+}
+
+    /* ───────────── npm：工作区依赖检查（本地读 package.json） ───────────── */    /* ───────────── npm：工作区依赖检查（本地读 package.json） ───────────── */
+
+/**
+ * 工作区依赖检查。
+ *
+ * 这是 npm 模块里唯一「不需要跳去别处」的重头功能：读本目录的
+ * package.json，把每个依赖的版本号拿去问 registry，然后按「已最新 /
+ * 有更新 / 读取失败」分组显示。
+ *
+ * @param {{ctx: object, cwd: string}} props
+ */
+function NpmDepsSection(props) {
+  const ctx = props.ctx;
+  const cwd = props.cwd || '';
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const aliveRef = useRef(true);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
+
+  const load = useCallback(async () => {
+    if (cwd === '') return;
+    setBusy(true);
+    setError('');
+    try {
+      const data = await api(ctx, API + '/npm/deps?path=' + encodeURIComponent(cwd));
+      if (aliveRef.current) setResult(data);
+    } catch (err) {
+      if (aliveRef.current) { setError(err.message); setResult(null); }
+    } finally {
+      if (aliveRef.current) setBusy(false);
+    }
+  }, [ctx, cwd]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const items = (result && result.items) || [];
+  const outdated = items.filter((row) => row.outdated);
+  const current = items.filter((row) => !row.outdated && row.latest);
+  const failed = items.filter((row) => row.error);
+
+  const renderRow = (row) => h('div', { key: row.group + ':' + row.name, className: 'dsh-push-npm-dep' },
+    h('span', { className: 'dsh-push-npm-dep-name' }, row.name),
+    h('span', { className: 'dsh-push-npm-dep-range' }, row.range),
+    h('span', { className: 'dsh-push-npm-dep-latest' },
+      row.error ? '—' : 'v' + row.latest),
+    row.outdated
+      ? h('span', { className: 'dsh-push-pill dsh-push-pill--warn' }, t('npmDepOutdated'))
+      : (row.error
+        ? h('span', { className: 'dsh-push-pill' }, t('npmDepUnknown'))
+        : h('span', { className: 'dsh-push-pill' }, t('npmDepCurrent'))));
+
+  return h('div', { className: 'dsh-push-group' },
+    h('div', { className: 'dsh-push-group-head' },
+      h('span', null, t('npmDepsTitle')),
+      h('div', { className: 'dsh-push-inline' },
+        result
+          ? h('span', { className: 'dsh-push-row-hint' },
+            t('npmDepsSummary', { total: result.total, outdated: result.outdated }))
+          : null,
+        h(Btn, { mini: true, disabled: busy, onClick: load },
+          busy ? t('loading') : t('refresh')))),
+
+    cwd === ''
+      ? h('div', { className: 'dsh-push-hint' }, t('npmDepsNoCwd'))
+      : (error
+        ? h('div', { className: 'dsh-push-error' }, error)
+        : (busy && result === null
+          ? h('div', { className: 'dsh-push-hint' }, t('npmDepsReading'))
+          : (result === null
+            ? null
+            : (result.total === 0
+              ? h('div', { className: 'dsh-push-hint' }, t('npmDepsEmpty'))
+              : h('div', { className: 'dsh-push-npm-deps' },
+                outdated.length > 0
+                  ? h('div', { className: 'dsh-push-npm-depgroup' },
+                    h('div', { className: 'dsh-push-npm-depgroup-head' },
+                      t('npmDepGroupOutdated') + ' · ' + outdated.length),
+                    outdated.map(renderRow))
+                  : null,
+                current.length > 0
+                  ? h('div', { className: 'dsh-push-npm-depgroup' },
+                    h('div', { className: 'dsh-push-npm-depgroup-head' },
+                      t('npmDepGroupCurrent') + ' · ' + current.length),
+                    current.map(renderRow))
+                  : null,
+                failed.length > 0
+                  ? h('div', { className: 'dsh-push-npm-depgroup' },
+                    h('div', { className: 'dsh-push-npm-depgroup-head' },
+                      t('npmDepGroupFailed') + ' · ' + failed.length),
+                    failed.map(renderRow))
+                  : null))))));
 }
 
     /* ───────────── B2. main page: remote repositories ───────────────────── */
@@ -7833,6 +8121,7 @@ function ReviewDialog(props) {
             h('div', { className: 'dsh-push-tab-repo' },
               h(PlatformSwitcher, { value: platform, onChange: switchPlatform }))),
           h('div', { className: 'dsh-push-scroll' },
+            h(NpmDepsSection, { ctx, cwd }),
             h(NpmSection, { ctx })));
       }
 

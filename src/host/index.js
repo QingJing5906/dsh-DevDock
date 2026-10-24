@@ -64,11 +64,16 @@ deleteRepo,
   verifyToken,
 } from './github.js';
 
+// 工作区依赖检查需要读本地 package.json。
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+
 // DevDock 的 npm 模块（只读：认账号、列包、看版本）。
 import {
   npmWhoami,
   npmSearchByMaintainer,
   npmPackument,
+  npmLatestVersion,
 } from './npm.js';
 import {
   GitError,
@@ -297,6 +302,38 @@ function emptyStatus() {
  * Exposed on the context as `githubLink` (a non-injected service, so a second
  * mount can detect itself and no other plugin can be forced to wait on it).
  */
+/**
+ * 判断一个 semver range 是否已经覆盖 latest。
+ *
+ * 这里故意只做保守判断：能明确判定"已满足"时才返回 true，其余一律当作
+ * 可能过时。原因是这个值的用途只是提示「要不要去看看」，误报一次比漏报
+ * 一次更容易接受——漏报会让用户以为自己是最新的。
+ *
+ * @param {string} range package.json 里写的版本范围
+ * @param {string} latest 注册表上的最新版本
+ * @returns {boolean}
+ */
+function rangeSatisfied(range, latest) {
+  const clean = String(range || '').trim();
+  if (clean === '' || clean === '*' || clean === 'latest') return true;
+  // 精确版本：直接比字符串。
+  if (/^v?=\d/.test(clean) || /^\d+\.\d+\.\d+$/.test(clean)) {
+    return clean.replace(/^v?=?/, '') === latest;
+  }
+  // caret / tilde：比较主版本（tilde 再要求次版本相同）。
+  const match = clean.match(/^[~^](\d+)(?:\.(\d+))?/);
+  if (match) {
+    const parts = latest.split('.');
+    const major = Number(parts[0]);
+    const minor = Number(parts[1]);
+    if (!Number.isFinite(major)) return false;
+    if (clean.startsWith('^')) return major === Number(match[1]);
+    return major === Number(match[1]) && minor === Number(match[2]);
+  }
+  // 其余写法（>= 、|| 、tag 名等）交给保守分支。
+  return false;
+}
+
 export class GithubLinkHost extends ServiceClass {
   /**
    * Only `webServer` is REQUIRED. The agent tool is an optional surface, so the
@@ -2329,6 +2366,81 @@ export class GithubLinkHost extends ServiceClass {
   }
 
   /**
+   * `GET /npm/deps` — 工作区 package.json 里的依赖，逐个比对 npm 上的最新版。
+   *
+   * 这是本插件少有的「不需要跳去别处」的 npm 能力：它读的是本地文件，
+   * 只把版本号拿去问 registry，最后在面板里直接给出「有没有更新」。
+   *
+   * 之所以并发受限，是因为一个正常项目有几十个依赖，逐个串行会慢到没人
+   * 愿意等；但全部并发又会触发 registry 的速率限制。
+   *
+   * @param {{path?: string, token?: string}} options
+   * @returns {Promise<object>}
+   */
+  async npmProjectDeps(options) {
+    const dir = typeof options.path === 'string' && options.path.trim() !== ''
+      ? options.path.trim()
+      : process.cwd();
+    const file = path.join(dir, 'package.json');
+    let raw;
+    try {
+      raw = await readFile(file, 'utf8');
+    } catch {
+      throw httpError(404, 'NOT_FOUND', `这个目录下没有 package.json：${dir}`);
+    }
+    let doc;
+    try {
+      doc = JSON.parse(raw);
+    } catch {
+      throw httpError(400, 'BAD_REQUEST', 'package.json 不是合法 JSON，无法解析。');
+    }
+
+    const groups = [
+      ['dependencies', doc.dependencies],
+      ['devDependencies', doc.devDependencies],
+    ];
+    const rows = [];
+    for (const [group, table] of groups) {
+      if (!table || typeof table !== 'object') continue;
+      for (const [name, range] of Object.entries(table)) {
+        if (typeof range !== 'string') continue;
+        rows.push({ name, range, group });
+      }
+    }
+
+    const account = await this.#store.activeNpmAccount();
+    const token = account ? account.token : undefined;
+
+    // 限并发 6：既不慢到不可用，也不至于把注册表打到限流。
+    const CONCURRENCY = 6;
+    const results = [];
+    for (let index = 0; index < rows.length; index += CONCURRENCY) {
+      const slice = rows.slice(index, index + CONCURRENCY);
+      const settled = await Promise.all(slice.map(async (row) => {
+        const info = await npmLatestVersion({ name: row.name, token });
+        return {
+          ...row,
+          latest: info.latest,
+          error: info.error ?? null,
+          outdated: info.latest !== null && !rangeSatisfied(row.range, info.latest),
+        };
+      }));
+      results.push(...settled);
+    }
+
+    return {
+      path: file,
+      name: typeof doc.name === 'string' ? doc.name : '',
+      version: typeof doc.version === 'string' ? doc.version : '',
+      items: results,
+      total: results.length,
+      outdated: results.filter((row) => row.outdated).length,
+      failed: results.filter((row) => row.error !== null).length,
+    };
+  }
+
+  /**
+   * `GET /npm/package` — one package's versions and dist-tags.  /**
    * `GET /npm/package` — one package's versions and dist-tags.
    *
    * Public data, so no token is required; a token is still passed when one is
@@ -2712,6 +2824,9 @@ function buildRoutes(host) {
       data: await host.npmPackages({ size: Number(query('size')) || undefined, from: Number(query('from')) || 0 }),
     })),
     get('/npm/package', async ({ query }) => ({ data: await host.npmPackage({ name: query('name') }) })),
+    get('/npm/deps', async ({ query }) => ({
+      data: await host.npmProjectDeps({ path: query('path') }),
+    })),
     get('/diagnostics', async () => ({ data: await host.diagnostics() })),
     post('/accounts/token', async ({ body }) => ({ data: await host.addTokenAccount(body) })),
     post('/accounts/device/start', async () => ({ data: await host.deviceStart() })),

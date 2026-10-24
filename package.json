@@ -1,6 +1,6 @@
 {
   "name": "dsh-harness-push",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "DevDock 套件的 GitHub / Git 模块：多账号登录切换、仓库浏览与管理、工作区版本树、一键推送、推送前 Agent 审查。",
   "type": "module",
   "main": "index.js",
@@ -23,7 +23,8 @@
     "CHANGELOG.md",
     "LICENSE",
     "CONTRACT.md",
-    "PUBLISHING.md"
+    "PUBLISHING.md",
+    "assets"
   ],
   "engines": {
     "node": ">=20"
@@ -47,11 +48,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/QingJing5906/dsh-push.git"
+    "url": "https://github.com/QingJing5906/dsh-DevDock.git"
   },
-  "homepage": "https://github.com/QingJing5906/dsh-push#readme",
+  "homepage": "https://github.com/QingJing5906/dsh-DevDock#readme",
   "bugs": {
-    "url": "https://github.com/QingJing5906/dsh-push/issues"
+    "url": "https://github.com/QingJing5906/dsh-DevDock/issues"
   },
   "author": "QingJing5906",
   "license": "MIT",
@@ -59,7 +60,7 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node tests/verify-client.mjs && node tests/verify-cards.mjs && node tests/verify-tool-surface.mjs && node tests/verify-errors.mjs && node tests/verify-push-memory.mjs && node tests/verify-delete-semantics.mjs && node tests/verify-review-rules.mjs && node tests/verify-review-store.mjs && node tests/verify-review-scope.mjs && node tests/verify-contract.mjs && node tests/verify-render.mjs && node tests/verify-density.mjs && node tests/verify-platform.mjs && node tests/verify-npm-client.mjs && node tests/verify-npm-store.mjs && node tests/verify-review-gate.mjs && node tests/verify-package.mjs && node tests/audit-reachability.mjs",
+    "test": "node tests/verify-client.mjs && node tests/verify-cards.mjs && node tests/verify-tool-surface.mjs && node tests/verify-errors.mjs && node tests/verify-push-memory.mjs && node tests/verify-delete-semantics.mjs && node tests/verify-review-rules.mjs && node tests/verify-review-store.mjs && node tests/verify-review-scope.mjs && node tests/verify-contract.mjs && node tests/verify-render.mjs && node tests/verify-density.mjs && node tests/verify-platform.mjs && node tests/verify-npm-client.mjs && node tests/verify-npm-store.mjs && node tests/verify-npm-deps.mjs && node tests/verify-review-gate.mjs && node tests/verify-package.mjs && node tests/audit-reachability.mjs",
     "test:refspec": "powershell -ExecutionPolicy Bypass -File tests/run-refspec.ps1",
     "prepublishOnly": "npm test"
   },
