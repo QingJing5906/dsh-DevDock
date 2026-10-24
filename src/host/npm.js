@@ -166,6 +166,34 @@ export async function npmWhoami(options) {
 }
 
 /**
+ * 按关键词搜索 npm 上的包。
+ *
+ * 与 `npmSearchByMaintainer` 的区别：这个面向「找包」，用户输入什么就搜
+ * 什么；那个面向「我的包」，限定维护者。两者共用同一个搜索端点，但
+ * 用途不同，界面上也分开放。
+ *
+ * @param {{text: string, token?: string, size?: number, from?: number, timeoutMs?: number}} options
+ * @returns {Promise<{items: object[], total: number}>}
+ */
+export async function npmSearchText(options) {
+  const text = String(options.text ?? '').trim();
+  if (text === '') throw new GithubError('BAD_REQUEST', '搜索关键词不能为空');
+  const size = Number.isFinite(options.size) ? Math.min(100, Math.max(1, Math.trunc(options.size))) : 20;
+  const from = Number.isFinite(options.from) ? Math.max(0, Math.trunc(options.from)) : 0;
+  const query = new URLSearchParams({ text, size: String(size), from: String(from) });
+  const response = await request({
+    path: `/-/v1/search?${query.toString()}`
+    , token: options.token,
+    timeoutMs: options.timeoutMs,
+  });
+  if (response.status !== 200) throw registryError(response, '搜索 npm 包');
+  const objects = response.json && Array.isArray(response.json.objects) ? response.json.objects : [];
+  const total = response.json && Number.isFinite(response.json.total) ? response.json.total : objects.length;
+  return { items: objects.map((entry) => mapSearchItem(entry, undefined)), total };
+}
+
+/**
+ * 搜索某用户维护的包。/**
  * 搜索某用户维护的包。
  *
  * registry 的搜索接口支持 `maintainer:` 限定符，这是唯一不依赖"先知道包名"
@@ -357,7 +385,40 @@ export async function npmLatestVersion(options) {
   }
 }
 
-/** 包在 npmjs.com 上的页面地址。 *//** 包在 npmjs.com 上的页面地址。 */
+/**
+ * 查一个包名在 registry 上的占用情况。
+ *
+ * 发布前自检需要知道两件不同的事：**名字**有没有人用，以及**这个具体
+ * 版本**是不是已经发过。名字被占用不等于不能发（可能就是自己的包），
+ * 但版本重复一定发不上去。
+ *
+ * @param {{name: string, token?: string, timeoutMs?: number}} options
+ * @returns {Promise<{exists: boolean, versions: string[], latest: string|null, error?: string}>}
+ */
+export async function npmPackageStatus(options) {
+  const name = String(options.name ?? '').trim();
+  if (name === '') return { exists: false, versions: [], latest: null, error: 'BAD_NAME' };
+  try {
+    const path = `/${encodeURIComponent(name).replace('%40', '@').replace('%2F', '/')}`;
+    const response = await request({ path, token: options.token, timeoutMs: options.timeoutMs ?? 15_000 });
+    if (response.status === 404) return { exists: false, versions: [], latest: null };
+    if (response.status !== 200) {
+      return { exists: false, versions: [], latest: null, error: 'HTTP_' + response.status };
+    }
+    const doc = response.json || {};
+    const versions = doc.versions && typeof doc.versions === 'object'
+      ? Object.keys(doc.versions)
+      : [];
+    const latest = doc['dist-tags'] && typeof doc['dist-tags'].latest === 'string'
+      ? doc['dist-tags'].latest
+      : null;
+    return { exists: true, versions, latest };
+  } catch (error) {
+    return { exists: false, versions: [], latest: null, error: error && error.code ? error.code : 'NETWORK' };
+  }
+}
+
+/** 包在 npmjs.com 上的页面地址。 *//** 包在 npmjs.com 上的页面地址。 *//** 包在 npmjs.com 上的页面地址。 */
 export function packageHtmlUrl(name) {
   return `https://www.npmjs.com/package/${encodeURIComponent(String(name ?? ''))}`;
 }

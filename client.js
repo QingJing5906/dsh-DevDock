@@ -343,6 +343,25 @@ window.__ModuleLoader__.load({
       npmFactDeps: "依赖",
       npmCopyInstall: "复制安装命令",
       npmDepsOfLatest: "最新版依赖",
+      npmAccountSection: "npm 账号",
+      npmNoAccountHint: "在设置里添加一个 Granular Access Token",
+      npmAddSave: "保存",
+      npmAddAccount: "添加 npm 账号",
+      npmTokenClassic: "Classic 令牌",
+      npmTokenGranular: "Granular 令牌",
+      npmSearchPlaceholder: "搜索 npm 包，回车确认",
+      npmSearchAction: "搜索",
+      npmSearchResult: "搜索「{q}」· {n} 个结果",
+      npmSearchEmpty: "没有找到匹配的包",
+      npmMineTitle: "我维护的包",
+      npmNeedLogin: "还没有登录 npm，可在 设置 › npm 里添加令牌。",
+      npmPackagesSection: "我的包",
+      npmProjectTitle: "这个项目",
+      npmPkgName: "包名",
+      npmPkgVersion: "版本",
+      npmPreflightTitle: "发布前自检",
+      npmPreflightOk: "可以发布",
+      npmPreflightBlocked: "有阻断项",
       rvTitle: "推送前审查",
       rvClose: "关闭",
       rvSettings: "设置",
@@ -835,6 +854,25 @@ window.__ModuleLoader__.load({
       npmFactDeps: "Deps",
       npmCopyInstall: "Copy install",
       npmDepsOfLatest: "Latest dependencies",
+      npmAccountSection: "npm accounts",
+      npmNoAccountHint: "Add a Granular Access Token in Settings",
+      npmAddSave: "Save",
+      npmAddAccount: "Add npm account",
+      npmTokenClassic: "Classic token",
+      npmTokenGranular: "Granular token",
+      npmSearchPlaceholder: "Search npm packages, Enter to run",
+      npmSearchAction: "Search",
+      npmSearchResult: "“{q}” · {n} results",
+      npmSearchEmpty: "No matching packages",
+      npmMineTitle: "Packages I maintain",
+      npmNeedLogin: "Not signed in to npm. Add a token in Settings › npm.",
+      npmPackagesSection: "My packages",
+      npmProjectTitle: "This project",
+      npmPkgName: "Name",
+      npmPkgVersion: "Version",
+      npmPreflightTitle: "Publish preflight",
+      npmPreflightOk: "Ready to publish",
+      npmPreflightBlocked: "Blocked",
       rvTitle: "Pre-push review",
       rvClose: "Close",
       rvSettings: "Settings",
@@ -1919,7 +1957,36 @@ window.__ModuleLoader__.load({
   background: #CB3837; color: #FFFFFF; font-weight: 700;
   letter-spacing: -0.02em; font-family: Georgia, serif; }
 
-/* 包详情：事实行 / 安装命令 / 依赖名 + 依赖检查面板，统一一套视觉。 */
+/* ── npm 三处界面各自的形状 ─────────────────────────────────────── */
+/* 侧栏：浏览 */
+.dsh-push-npm-browse { display: flex; flex-direction: column; gap: 6px; }
+.dsh-push-npm-searchrow { display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px; background: var(--dsw-alias-bg-layer-1); }
+.dsh-push-npm-searchrow input { flex: 1 1 auto; min-width: 0; font: inherit;
+  font-size: 12px; border: 0; outline: none; background: transparent;
+  color: var(--dsw-alias-label-primary); }
+.dsh-push-npm-searchmeta { padding: 2px 2px 0; }
+.dsh-push-npm-browse-main { cursor: pointer; gap: 8px; }
+.dsh-push-npm-browse-desc { padding: 0 2px 4px; }
+
+/* 设置页：账号卡片 + 包行 */
+.dsh-push-npm-settings { display: flex; flex-direction: column; gap: 10px; }
+.dsh-push-npm-pkgrow { align-items: center; }
+
+/* 标签页：项目视角 */
+.dsh-push-npm-project { display: flex; flex-direction: column; gap: 10px; }
+.dsh-push-npm-checkhead { display: flex; align-items: center; gap: 8px;
+  padding: 6px 0 2px; }
+.dsh-push-npm-checks { display: flex; flex-direction: column; gap: 2px;
+  padding: 2px 0 4px; }
+.dsh-push-npm-check { display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: baseline; gap: 8px; padding: 3px 2px; }
+.dsh-push-npm-check-msg { font-size: 12px;
+  color: var(--dsw-alias-label-primary); }
+
+/* 包详情：事实行 / 安装命令 / 依赖名 + 依赖检查面板，统一一套视觉。 *//* 包详情：事实行 / 安装命令 / 依赖名 + 依赖检查面板，统一一套视觉。 */
 .dsh-push-npm-facts { display: flex; flex-wrap: wrap; gap: 6px;
   padding: 8px 0 6px; }
 .dsh-push-npm-fact { display: inline-flex; align-items: baseline; gap: 5px;
@@ -4972,29 +5039,36 @@ function NpmMark(props) {
  * 是「DevDock 这个套件」，平台是在里面切换的。用平台图标当入口图标会
  * 造成"入口叫 DevDock、图标却是 npm"的错位。
  */
-/** 用户提供的 DevDock 图标（64px 内嵌，避免多一次请求）。 */
-const DEVDOCK_ICON_URI = 'data:image/png;base64,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';
-
 /**
- * 套件标记。
+ * 套件标记：粗体 D + 一个蓝点。
  *
- * 三个入口（设置 / 左侧栏 / 工作区标签页）都用它，因为它们代表的是
- * 「DevDock 这个套件」，平台是在入口内部切换的。
+ * 纯矢量而不是位图。上一版把用户做的 500×500 PNG 缩到 16px，笔画糊成
+ * 一团——位图在 2% 的显示尺寸下必然丢失细节。这个形状只有两个元素，
+ * 缩到 16px 依然能看出「D」和那个点。
  *
- * 用真实图标而不是手绘形状：品牌标识应当就是用户做的那个，而不是近似品。
+ * D 用 currentColor 跟随宿主的图标颜色（深色/浅色主题都成立）；蓝点是
+ * 品牌记号，固定色，不随主题变。
  */
 function DevDockMark(props) {
   const size = (props && props.size) || 16;
-  return h('img', {
-    src: DEVDOCK_ICON_URI,
+  return h('svg', {
     width: size,
     height: size,
-    alt: '',
+    viewBox: '0 0 24 24',
     'aria-hidden': 'true',
-    style: { display: 'block', borderRadius: Math.round(size * 0.22) + 'px' },
-  });
+    style: { display: 'block', flex: 'none' },
+  },
+    h('path', {
+      d: 'M6.2 20 V4.6 H11.2 A7.7 7.7 0 0 1 11.2 20 Z',
+      fill: 'none',
+      stroke: 'currentColor',
+      'stroke-width': 3.2,
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+    }),
+    h('circle', { cx: 20.9, cy: 20.3, r: 2.2, fill: '#2F7BF6' }));
 }
-/** 按平台 id 渲染对应标记。 */
+/** 按平台 id 渲染对应标记：GitHub 用八爪猫，npm 用品牌方块。 */
 function PlatformMark(props) {
   const id = props && props.id;
   const size = (props && props.size) || 14;
@@ -5137,12 +5211,175 @@ function SidebarIcon(props) {
  *
  * @param {{ctx: object}} props
  */
-function NpmSection(props) {
+/* ───────────── npm 账号卡片（仅设置页） ───────────── */
+
+/**
+ * npm 账号管理。
+ *
+ * 只出现在设置页：账号是「一处管理、处处使用」的东西，在侧栏和标签页里
+ * 再放一份同样的增删界面既重复，也容易让人误以为它们各自独立。
+ *
+ * 卡片复用 GitHub 账号卡片那套类名，所以两个平台的账号区视觉天然一致。
+ *
+ * @param {{ctx: object, onChanged?: () => void}} props
+ */
+function NpmAccountCards(props) {
   const ctx = props.ctx;
-  const [accounts, setAccounts] = useState(null);
-  const [packages, setPackages] = useState(null);
+  const [data, setData] = useState(null);
+  const [adding, setAdding] = useState(false);
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const aliveRef = useRef(true);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
+
+  const load = useCallback(async () => {
+    try {
+      const next = await api(ctx, API + '/npm/accounts');
+      // 同一份数据也写进同步缓存，侧栏用它决定是否提示「去设置里添加」。
+      npmAccountCache.length = 0;
+      if (next && Array.isArray(next.accounts)) npmAccountCache.push(...next.accounts);
+      if (aliveRef.current) setData(next || { accounts: [], activeId: null });
+    } catch (err) {
+      if (aliveRef.current) setError(err.message);
+    }
+  }, [ctx]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const run = async (label, action) => {
+    setBusy(label);
+    setError('');
+    try {
+      await action();
+      await load();
+      if (typeof props.onChanged === 'function') props.onChanged();
+    } catch (err) {
+      if (aliveRef.current) setError(err.message);
+    } finally {
+      if (aliveRef.current) setBusy('');
+    }
+  };
+
+  const add = () => run('add', async () => {
+    const value = String(token || '').trim();
+    if (value === '') return;
+    await api(ctx, API + '/npm/account', { method: 'POST', body: { token: value } });
+    if (aliveRef.current) { setToken(''); setAdding(false); }
+  });
+
+  const list = (data && data.accounts) || [];
+  const activeId = data ? data.activeId : null;
+
+  const tokenField = h('input', {
+    className: 'dsh-push-input dsh-push-acc-token',
+    type: 'password',
+    value: token,
+    placeholder: t('npmTokenPlaceholder'),
+    spellCheck: false,
+    onChange: (e) => setToken(e.target.value),
+  });
+
+  const addPanel = h('div', { className: 'dsh-push-acc-panel' },
+    tokenField,
+    h('div', { className: 'dsh-push-inline' },
+      h(Btn, { kind: 'primary', disabled: busy === 'add' || token.trim() === '', onClick: add },
+        t('npmAddSave')),
+      h(Btn, { disabled: Boolean(busy), onClick: () => { setAdding(false); setToken(''); } },
+        t('cancel'))));
+
+  const addRow = h('button', {
+    type: 'button',
+    className: 'dsh-push-acc-addrow',
+    onClick: () => setAdding(true),
+  }, h(Icon, { name: 'plus', size: 12 }), t('npmAddAccount'));
+
+  const emptyCard = h('button', {
+    type: 'button',
+    className: 'dsh-push-acc-card dsh-push-acc-card--empty',
+    onClick: () => setAdding(true),
+  },
+    h(NpmMark, { size: 20 }),
+    h('span', { className: 'dsh-push-acc-card-empty' }, t('npmAdd')),
+    h('span', { className: 'dsh-push-acc-card-hint' }, t('npmNoAccountHint')));
+
+  const accountCard = (account) => h('div', {
+    key: account.id,
+    className: 'dsh-push-acc-card',
+  },
+    h(NpmMark, { size: 22 }),
+    h('div', { className: 'dsh-push-acc-card-main' },
+      h('div', { className: 'dsh-push-acc-card-name' }, account.login),
+      h('div', { className: 'dsh-push-acc-card-sub' },
+        h('span', { className: 'dsh-push-acc-card-login' },
+          account.tokenKind === 'classic' ? t('npmTokenClassic') : t('npmTokenGranular')),
+        account.id === activeId
+          ? h('span', { className: 'dsh-push-pill' }, t('npmCurrent'))
+          : null)),
+    h('div', { className: 'dsh-push-inline' },
+      account.id === activeId
+        ? null
+        : h(Btn, {
+          mini: true,
+          disabled: Boolean(busy),
+          onClick: () => run('switch', () => api(ctx, API + '/npm/account/active', {
+            method: 'POST',
+            body: { id: account.id },
+          })),
+        }, t('npmSwitch')),
+      h('button', {
+        type: 'button',
+        className: 'dsh-push-iconbtn',
+        title: t('npmRemove'),
+        'aria-label': t('npmRemove'),
+        disabled: Boolean(busy),
+        onClick: () => run('remove', () => api(ctx, API + '/npm/account/remove', {
+          method: 'POST',
+          body: { id: account.id },
+        })),
+      }, h(Icon, { name: 'close', size: 12 }))));
+
+  const stackChildren = [list.length === 0 && !adding ? emptyCard : null]
+    .concat(list.map(accountCard));
+  if (list.length > 0) stackChildren.push(adding ? addPanel : addRow);
+
+  return h('div', { className: 'dsh-push-group' },
+    h('div', { className: 'dsh-push-group-head' },
+      h('span', null, t('npmAccountSection')),
+      h('span', { className: 'dsh-push-row-hint' }, t('npmReadOnly'))),
+    error ? h('div', { className: 'dsh-push-error' }, error) : null,
+    h('div', { className: 'dsh-push-acc-stack' }, stackChildren));
+}
+
+/* ───────────── npm 浏览（仅左侧栏：找包、看包） ───────────── */
+
+/** 版本行：包详情里共用。 */
+function renderVersionRow(row) {
+  return h('div', { key: row.version, className: 'dsh-push-npm-version' },
+    h('span', { className: 'dsh-push-mono' }, row.version),
+    row.isLatest ? h('span', { className: 'dsh-push-pill' }, t('npmLatest')) : null,
+    row.deprecated ? h('span', { className: 'dsh-push-pill dsh-push-pill--warn' }, t('npmDeprecated')) : null,
+    h('span', { className: 'dsh-push-hint' }, relativeTime(row.publishedAt)));
+}
+
+/**
+ * 包搜索与详情。
+ *
+ * 左侧栏的职责是「看和找」，不是「管」：没有账号增删，只有一个搜索框和
+ * 自己的包。没登录时给一句去设置里添加的提示，而不是再复制一份登录表单。
+ *
+ * @param {{ctx: object, available: boolean}} props
+ */
+function NpmSearchPanel(props) {
+  const ctx = props.ctx;
+  const [query, setQuery] = useState('');
+  const [term, setTerm] = useState('');
+  const [items, setItems] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [openName, setOpenName] = useState('');
   const [detail, setDetail] = useState(null);
@@ -5153,65 +5390,43 @@ function NpmSection(props) {
     return () => { aliveRef.current = false; };
   }, []);
 
-  const loadAccounts = useCallback(async () => {
+  const search = useCallback(async (text) => {
+    const value = String(text || '').trim();
+    if (value === '') return;
+    setBusy(true);
+    setError('');
+    setOpenName('');
+    setDetail(null);
     try {
-      const data = await api(ctx, API + '/npm/accounts');
-      if (aliveRef.current) setAccounts(data || { accounts: [], activeId: null });
+      const params = new URLSearchParams({ q: value, size: '30' });
+      const data = await api(ctx, API + '/npm/search?' + params.toString());
+      if (aliveRef.current) setItems((data && data.items) || []);
     } catch (err) {
-      if (aliveRef.current) setError(err.message);
+      if (aliveRef.current) { setError(err.message); setItems(null); }
+    } finally {
+      if (aliveRef.current) setBusy(false);
     }
   }, [ctx]);
 
-  const loadPackages = useCallback(async () => {
-    try {
-      const data = await api(ctx, API + '/npm/packages?size=30');
-      if (aliveRef.current) setPackages(data ? data.items : []);
-    } catch (err) {
-      // 没有登录 npm 是正常状态，不当成错误显示。
-      if (aliveRef.current && err.code !== 'NO_ACCOUNT') {
-        setError(err.message);
-      }
-      if (aliveRef.current) setPackages(null);
-    }
-  }, [ctx]);
-
-  const reload = useCallback(async () => {
-    await loadAccounts();
-    await loadPackages();
-  }, [loadAccounts, loadPackages]);
-
-  // reloadKey 让父级（面板头部的刷新按钮）能触发一次重新读取。
-  useEffect(() => { reload(); }, [reload, props.reloadKey]);
-
-  const run = async (label, action) => {
-    setBusy(label);
+  /* 没输关键词时先显示「自己的包」，那是最可能的默认意图。 */
+  const loadMine = useCallback(async () => {
+    if (!props.available) { setItems(null); return; }
+    setBusy(true);
     setError('');
     try {
-      await action();
-      await reload();
+      const data = await api(ctx, API + '/npm/packages?size=30');
+      if (aliveRef.current) setItems((data && data.items) || []);
     } catch (err) {
-      if (aliveRef.current) setError(err.message);
+      if (aliveRef.current && err.code !== 'NO_ACCOUNT') setError(err.message);
+      if (aliveRef.current) setItems(null);
     } finally {
-      if (aliveRef.current) setBusy('');
+      if (aliveRef.current) setBusy(false);
     }
-  };
+  }, [ctx, props.available]);
 
-  const addAccount = () => run('add', async () => {
-    const value = String(token || '').trim();
-    if (value === '') return;
-    await api(ctx, API + '/npm/account', { method: 'POST', body: { token: value } });
-    if (aliveRef.current) setToken('');
-  });
+  useEffect(() => { loadMine(); }, [loadMine]);
 
-  const removeAccount = (id) => run('remove', async () => {
-    await api(ctx, API + '/npm/account/remove', { method: 'POST', body: { id } });
-  });
-
-  const switchAccount = (id) => run('switch', async () => {
-    await api(ctx, API + '/npm/account/active', { method: 'POST', body: { id } });
-  });
-
-  const togglePackage = async (name) => {
+  const open = async (name) => {
     if (openName === name) { setOpenName(''); setDetail(null); return; }
     setOpenName(name);
     setDetail(null);
@@ -5223,115 +5438,267 @@ function NpmSection(props) {
     }
   };
 
-  const list = (accounts && accounts.accounts) || [];
-  const activeId = accounts ? accounts.activeId : null;
+  const detailBlock = (pkg) => h('div', { className: 'dsh-push-npm-detail' },
+    h('div', { className: 'dsh-push-npm-facts' },
+      packageFact(t('npmFactVersions'), String(detail.versionCount)),
+      packageFact(t('npmFactSize'), formatBytes(detail.unpackedSize)),
+      packageFact(t('npmFactLicense'), detail.license || '—'),
+      packageFact(t('npmFactDeps'), String(Object.keys(detail.dependencies || {}).length))),
+    h('div', { className: 'dsh-push-npm-install' },
+      h('code', { className: 'dsh-push-mono' }, 'npm i ' + detail.name + '@' + detail.latestVersion),
+      h(Btn, {
+        mini: true,
+        onClick: () => copyText('npm i ' + detail.name + '@' + detail.latestVersion),
+      }, t('npmCopyInstall'))),
+    detail.versions.slice(0, 8).map(renderVersionRow));
 
-  /* 版本行与包行各自一个函数：把它们硬塞进 return 里会形成四层嵌套，
-   * 括号一旦写错就是整屏消失，而这里读起来仍然是一行一件事。 */
-  const renderVersion = (row) => h('div', { key: row.version, className: 'dsh-push-npm-version' },
-    h('span', { className: 'dsh-push-mono' }, row.version),
-    row.isLatest ? h('span', { className: 'dsh-push-pill' }, t('npmLatest')) : null,
-    row.deprecated ? h('span', { className: 'dsh-push-pill dsh-push-pill--warn' }, t('npmDeprecated')) : null,
-    h('span', { className: 'dsh-push-hint' }, relativeTime(row.publishedAt)));
-
-  const renderPackage = (pkg) => h('div', { key: pkg.name, className: 'dsh-push-row' },
-    h('div', { className: 'dsh-push-row-main', onClick: () => togglePackage(pkg.name) },
+  const row = (pkg) => h('div', { key: pkg.name, className: 'dsh-push-row' },
+    h('div', {
+      className: 'dsh-push-row-main dsh-push-npm-browse-main',
+      onClick: () => open(pkg.name),
+    },
       h('span', { className: 'dsh-push-mono' }, pkg.name),
       h('span', { className: 'dsh-push-hint' }, pkg.version ? 'v' + pkg.version : ''),
-      pkg.description ? h('span', { className: 'dsh-push-row-hint' }, pkg.description) : null),
-    h('div', { className: 'dsh-push-inline' },
-      pkg.links && pkg.links.npm
-        ? h('a', { className: 'dsh-push-btn dsh-push-btn--mini', href: pkg.links.npm, target: '_blank', rel: 'noreferrer' },
-          h(Icon, { name: 'external', size: 10 }))
-        : null),
-    openName === pkg.name && detail
-      ? h('div', { className: 'dsh-push-npm-detail' },
-        /* 概览：本地就能看全的元信息，不需要去 npmjs.com。 */
-        h('div', { className: 'dsh-push-npm-facts' },
-          packageFact(t('npmFactVersions'), String(detail.versionCount)),
-          packageFact(t('npmFactSize'), formatBytes(detail.unpackedSize)),
-          packageFact(t('npmFactFiles'), detail.fileCount === null ? '—' : String(detail.fileCount)),
-          packageFact(t('npmFactLicense'), detail.license || '—'),
-          packageFact(t('npmFactDeps'), String(Object.keys(detail.dependencies || {}).length))),
+      pkg.date ? h('span', { className: 'dsh-push-hint' }, relativeTime(pkg.date)) : null),
+    pkg.description
+      ? h('div', { className: 'dsh-push-row-hint dsh-push-npm-browse-desc' }, pkg.description)
+      : null,
+    openName === pkg.name && detail ? detailBlock(pkg) : null);
 
-        /* 一行就能复制的安装命令，省掉跳转。 */
-        h('div', { className: 'dsh-push-npm-install' },
-          h('code', { className: 'dsh-push-mono' }, 'npm i ' + detail.name + '@' + detail.latestVersion),
-          h(Btn, { mini: true, onClick: () => copyText('npm i ' + detail.name + '@' + detail.latestVersion) },
-            t('npmCopyInstall'))),
-
-        Object.keys(detail.dependencies || {}).length > 0
-          ? h('div', { className: 'dsh-push-npm-deplist' },
-            h('div', { className: 'dsh-push-row-hint' }, t('npmDepsOfLatest')),
-            h('div', { className: 'dsh-push-npm-depnames' },
-              Object.keys(detail.dependencies).slice(0, 24).map((name) =>
-                h('span', { key: name, className: 'dsh-push-pill dsh-push-pill--idle' },
-                  name + ' ' + detail.dependencies[name]))))
-          : null,
-
-        h('div', { className: 'dsh-push-row-hint' }, t('npmVersionCount', { n: detail.versionCount })),
-        detail.versions.slice(0, 12).map(renderVersion))
-      : null);
-
-  return h('div', { className: 'dsh-push-group' },
-    h('div', { className: 'dsh-push-group-head' },
-      h('span', null, t('npmSection')),
-      h('span', { className: 'dsh-push-row-hint' }, t('npmReadOnly'))),
-
-    /* 账号行 */
-    list.length === 0
-      ? h('div', { className: 'dsh-push-row', style: { borderBottom: 'none' } },
-        h('div', { className: 'dsh-push-row-label' },
-          h('input', {
-            className: 'dsh-push-input',
-            type: 'password',
-            value: token,
-            placeholder: t('npmTokenPlaceholder'),
-            spellCheck: false,
-            style: { width: '260px' },
-            onChange: (e) => setToken(e.target.value),
-          })),
-        h(Btn, { disabled: busy === 'add' || token.trim() === '', onClick: addAccount },
-          t('npmAdd')))
-      : [
-        h('div', { className: 'dsh-push-rows', key: 'row' },
-          list.map((account) => h('div', { key: account.id, className: 'dsh-push-row' },
-            h('div', { className: 'dsh-push-row-label' },
-              h('span', { className: 'dsh-push-mono' }, account.login),
-              account.id === activeId
-                ? h('span', { className: 'dsh-push-pill' }, t('npmCurrent'))
-                : null),
-            h('div', { className: 'dsh-push-inline' },
-              account.id === activeId
-                ? null
-                : h(Btn, { mini: true, disabled: Boolean(busy), onClick: () => switchAccount(account.id) },
-                  t('npmSwitch')),
-              h(Btn, { mini: true, kind: 'danger', disabled: Boolean(busy), onClick: () => removeAccount(account.id) },
-                t('npmRemove')))))) ,
-        h('div', { className: 'dsh-push-row', key: 'add', style: { borderBottom: 'none' } },
-          h('div', { className: 'dsh-push-row-label' },
-            h('input', {
-              className: 'dsh-push-input',
-              type: 'password',
-              value: token,
-              placeholder: t('npmTokenPlaceholder'),
-              spellCheck: false,
-              style: { width: '260px' },
-              onChange: (e) => setToken(e.target.value),
-            })),
-          h(Btn, { disabled: busy === 'add' || token.trim() === '', onClick: addAccount },
-            t('npmAdd'))),
-      ],
-
-    /* 包列表 */
-    packages === null
+  const searchRow = h('div', { className: 'dsh-push-search dsh-push-npm-searchrow' },
+    h(Icon, { name: 'search', size: 13 }),
+    h('input', {
+      type: 'text',
+      value: query,
+      placeholder: t('npmSearchPlaceholder'),
+      onChange: (e) => setQuery(e.target.value),
+      onKeyDown: (e) => {
+        if (e.key !== 'Enter') return;
+        setTerm(query.trim());
+        search(query);
+      },
+    }),
+    query.trim() === ''
       ? null
-      : packages.length === 0
-        ? h('div', { className: 'dsh-push-hint' }, t('npmNoPackages'))
-        : h('div', { className: 'dsh-push-rows' }, packages.map(renderPackage)));
+      : h('button', {
+        type: 'button',
+        className: 'dsh-push-iconbtn',
+        title: t('npmSearchAction'),
+        onClick: () => { setTerm(query.trim()); search(query); },
+      }, h(Icon, { name: 'search', size: 12 })));
+
+  const meta = h('div', { className: 'dsh-push-row-hint dsh-push-npm-searchmeta' },
+    busy
+      ? t('loading')
+      : (term === ''
+        ? t('npmMineTitle')
+        : t('npmSearchResult', { q: term, n: (items || []).length })));
+
+  const rows = items || [];
+  const body = rows.length === 0
+    ? (busy ? null : h('div', { className: 'dsh-push-empty' },
+      term === '' ? t('npmNoPackages') : t('npmSearchEmpty')))
+    : h('div', { className: 'dsh-push-rows' }, rows.map(row));
+
+  return h('div', { className: 'dsh-push-npm-browse' },
+    searchRow,
+    props.available ? null : h('div', { className: 'dsh-push-hint' }, t('npmNeedLogin')),
+    error ? h('div', { className: 'dsh-push-error' }, error) : null,
+    meta,
+    body);
 }
 
-/** 一条「标签 : 值」的事实，用于包详情顶部。 */
+/* ───────────── npm 工作区（仅右侧标签页：这个项目自己的事） ───────────── */
+
+/**
+ * 项目视角的 npm 面板。
+ *
+ * 标签页绑定的是一个目录，所以这里只讲「这个项目」：它是谁、能不能发布、
+ * 依赖新不新。换一个目录就是另一套信息——这才是这个入口存在的理由。
+ *
+ * @param {{ctx: object, cwd: string}} props
+ */
+function NpmProjectPanel(props) {
+  const ctx = props.ctx;
+  const cwd = props.cwd || '';
+  const [manifest, setManifest] = useState(null);
+  const [preflight, setPreflight] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const aliveRef = useRef(true);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
+
+  const load = useCallback(async () => {
+    if (cwd === '') return;
+    setBusy(true);
+    setError('');
+    const params = '?path=' + encodeURIComponent(cwd);
+    const [deps, checks] = await Promise.all([
+      api(ctx, API + '/npm/deps' + params).catch((err) => ({ __error: err.message })),
+      api(ctx, API + '/npm/preflight' + params).catch((err) => ({ __error: err.message })),
+    ]);
+    if (!aliveRef.current) return;
+    setManifest(deps && !deps.__error ? deps : null);
+    setPreflight(checks && !checks.__error ? checks : null);
+    if ((deps && deps.__error) || (checks && checks.__error)) {
+      setError((deps && deps.__error) || (checks && checks.__error));
+    }
+    if (aliveRef.current) setBusy(false);
+  }, [ctx, cwd]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (cwd === '') return h('div', { className: 'dsh-push-hint' }, t('npmDepsNoCwd'));
+
+  const TONE = {
+    fail: 'dsh-push-sev--blocker',
+    warn: 'dsh-push-sev--medium',
+    info: 'dsh-push-sev--info',
+    pass: 'dsh-push-sev--low',
+  };
+
+  const checks = (preflight && preflight.checks) || [];
+  const checkRow = (rowItem) => h('div', { key: rowItem.id, className: 'dsh-push-npm-check' },
+    h('span', { className: 'dsh-push-sev ' + (TONE[rowItem.level] || '') },
+      h('span', { className: 'dsh-push-sev-dot' })),
+    h('span', { className: 'dsh-push-npm-check-msg' }, rowItem.message),
+    rowItem.hint ? h('span', { className: 'dsh-push-row-hint' }, rowItem.hint) : null);
+
+  const facts = manifest
+    ? h('div', { className: 'dsh-push-npm-facts' },
+      packageFact(t('npmPkgName'), manifest.name || '—'),
+      packageFact(t('npmPkgVersion'), manifest.version || '—'),
+      packageFact(t('npmFactDeps'), String(manifest.total || 0)))
+    : null;
+
+  const verdict = preflight
+    ? h('div', { className: 'dsh-push-npm-checkhead' },
+      h('span', { className: 'dsh-push-row-hint' }, t('npmPreflightTitle')),
+      h('span', {
+        className: 'dsh-push-pill' + (preflight.publishable ? '' : ' dsh-push-pill--warn'),
+      }, preflight.publishable ? t('npmPreflightOk') : t('npmPreflightBlocked')))
+    : null;
+
+  const checkList = checks.length > 0
+    ? h('div', { className: 'dsh-push-npm-checks' }, checks.map(checkRow))
+    : null;
+
+  const group = h('div', { className: 'dsh-push-group' },
+    h('div', { className: 'dsh-push-group-head' },
+      h('span', null, t('npmProjectTitle')),
+      h(Btn, { mini: true, disabled: busy, onClick: load },
+        busy ? t('loading') : t('refresh'))),
+    error ? h('div', { className: 'dsh-push-error' }, error) : null,
+    facts,
+    verdict,
+    checkList);
+
+  return h('div', { className: 'dsh-push-npm-project' },
+    group,
+    h(NpmDepsSection, { ctx, cwd }));
+}
+
+/* ───────────── npm 设置页：账号卡片 + 我的包 ───────────── */
+
+/**
+ * 设置页的 npm 一页。
+ *
+ * 这里是唯一能增删账号的地方；包列表是这个账号名下的包。侧栏负责找包，
+ * 工作区标签页负责当前项目，三者内容不重复。
+ *
+ * @param {{ctx: object, reloadKey?: number}} props
+ */
+function NpmSection(props) {
+  const ctx = props.ctx;
+  const [packages, setPackages] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const aliveRef = useRef(true);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
+
+  const loadPackages = useCallback(async () => {
+    try {
+      const data = await api(ctx, API + '/npm/packages?size=30');
+      if (aliveRef.current) setPackages(data ? data.items : []);
+    } catch (err) {
+      if (aliveRef.current && err.code !== 'NO_ACCOUNT') setError(err.message);
+      if (aliveRef.current) setPackages(null);
+    }
+  }, [ctx]);
+
+  useEffect(() => { loadPackages(); }, [loadPackages, props.reloadKey]);
+
+  const refresh = async () => {
+    setBusy(true);
+    await loadPackages();
+    if (aliveRef.current) setBusy(false);
+  };
+
+  const pkgRow = (pkg) => h('div', { key: pkg.name, className: 'dsh-push-row dsh-push-npm-pkgrow' },
+    h('div', { className: 'dsh-push-row-main' },
+      h('span', { className: 'dsh-push-mono' }, pkg.name),
+      h('span', { className: 'dsh-push-hint' }, pkg.version ? 'v' + pkg.version : ''),
+      h('span', { className: 'dsh-push-hint' }, relativeTime(pkg.date))),
+    h('div', { className: 'dsh-push-inline' },
+      h(Btn, { mini: true, onClick: () => copyText('npm i ' + pkg.name) },
+        t('npmCopyInstall'))));
+
+  const rows = packages || [];
+  const list = rows.length === 0
+    ? h('div', { className: 'dsh-push-hint' }, t('npmNoPackages'))
+    : h('div', { className: 'dsh-push-rows' }, rows.map(pkgRow));
+
+  return h('div', { className: 'dsh-push-npm-settings' },
+    h(NpmAccountCards, { ctx, onChanged: loadPackages }),
+    h('div', { className: 'dsh-push-group' },
+      h('div', { className: 'dsh-push-group-head' },
+        h('span', null, t('npmPackagesSection')),
+        h(Btn, { mini: true, disabled: busy, onClick: refresh },
+          busy ? t('loading') : t('refresh'))),
+      error ? h('div', { className: 'dsh-push-error' }, error) : null,
+      list));
+}
+
+/**
+ * npm 是否已登录（同步判断，仅用于渲染一个提示条）。
+ *
+ * 这里的同步缓存是刻意的：侧栏在渲染时需要立刻知道「该不该提示去设置里
+ * 添加账号」，而那次请求不是渲染的关键路径。真的操作仍由各面板自己请求。
+ *
+ * @returns {boolean}
+ */
+function npmLoggedIn() {
+  return npmAccountCache.length > 0;
+}
+
+/** 由 NpmAccountCards / NpmSearchPanel 刷新。 */
+const npmAccountCache = [];
+
+/**
+ * 读取账号列表并更新缓存。
+ * @param {object} ctx
+ * @returns {Promise<object[]>}
+ */
+async function npmRefreshAccounts(ctx) {
+  try {
+    const data = await api(ctx, API + '/npm/accounts');
+    npmAccountCache.length = 0;
+    if (data && Array.isArray(data.accounts)) npmAccountCache.push(...data.accounts);
+    return npmAccountCache;
+  } catch {
+    return npmAccountCache;
+  }
+}
+
+/** 一条「标签 : 值」的事实，用于包详情顶部。 *//** 一条「标签 : 值」的事实，用于包详情顶部。 */
 function packageFact(label, value) {
   return h('span', { className: 'dsh-push-npm-fact', key: label },
     h('span', { className: 'dsh-push-npm-fact-label' }, label),
@@ -5715,6 +6082,8 @@ function NpmDepsSection(props) {
 
       /* npm 视图：面板头部保留同一个切换器，正文换成 npm 的账号与包列表。
        * 两个平台共用同一个入口，入口数量不随平台增加。 */
+      /* 左侧栏的 npm 只负责「找包 / 看包」：这里没有账号管理，那是设置页的
+       * 职责。三个入口各做一件事，才不会变成三份一样的界面。 */
       if (platform === 'npm') {
         return h('div', { className: 'dsh-push-root dsh-push-page', style: densityStyle(density) },
           h('div', { className: 'dsh-push-page-head' },
@@ -5723,7 +6092,11 @@ function NpmDepsSection(props) {
             h(Btn, { mini: true, onClick: () => setNpmReload((n) => n + 1), title: t('refresh') },
               h(Icon, { name: 'refresh', size: 12 }))),
           h('div', { className: 'dsh-push-page-body' },
-            h(NpmSection, { ctx, reloadKey: npmReload })));
+            h(NpmSearchPanel, {
+              ctx,
+              available: Boolean(npmLoggedIn()),
+              reloadKey: npmReload,
+            })));
       }
 
       return h('div', { className: 'dsh-push-root dsh-push-page', style: densityStyle(density) },
@@ -8114,15 +8487,19 @@ function ReviewDialog(props) {
 
       /* npm 不是「目录」概念，所以这个入口在 npm 模式下不看 cwd：
        * 直接给账号与包列表，避免出现一个永远空着的 Git 面板。 */
+      /* 标签页绑定一个目录，所以 npm 在这里只讲这个项目：清单、发布自检、
+       * 依赖是否落后。换目录就是另一套信息。 */
       if (platform === 'npm') {
         return h('div', { className: 'dsh-push-root dsh-push-tab', style: densityStyle(density) },
           reviewDialog,
           h('div', { className: 'dsh-push-tab-head' },
             h('div', { className: 'dsh-push-tab-repo' },
-              h(PlatformSwitcher, { value: platform, onChange: switchPlatform }))),
+              h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
+              h('span', { className: 'dsh-push-page-spacer' }),
+              h(Btn, { mini: true, onClick: () => refresh(false), title: t('refresh') },
+                h(Icon, { name: 'refresh', size: 12 })))),
           h('div', { className: 'dsh-push-scroll' },
-            h(NpmDepsSection, { ctx, cwd }),
-            h(NpmSection, { ctx })));
+            h(NpmProjectPanel, { ctx, cwd })));
       }
 
       /* ── no workspace path: nothing can be asked of git without one ── */

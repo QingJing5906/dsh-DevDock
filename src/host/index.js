@@ -74,6 +74,8 @@ import {
   npmSearchByMaintainer,
   npmPackument,
   npmLatestVersion,
+  npmSearchText,
+  npmPackageStatus,
 } from './npm.js';
 import {
   GitError,
@@ -2366,6 +2368,143 @@ export class GithubLinkHost extends ServiceClass {
   }
 
   /**
+   * `GET /npm/search` — 按关键词搜索 npm 上的包。
+   *
+   * 公开数据，不要求登录；有账号时带上令牌，私有包才搜得到。
+   *
+   * @param {{q?: string, size?: number}} query
+   * @returns {Promise<object>}
+   */
+  async npmSearch(query) {
+    const text = typeof query.q === 'string' ? query.q.trim() : '';
+    if (text === '') throw httpError(400, 'BAD_REQUEST', '请输入要搜索的包名或关键词。');
+    const account = await this.#store.activeNpmAccount();
+    const result = await npmSearchText({
+      text,
+      size: Number.isFinite(query.size) ? Number(query.size) : 20,
+      token: account ? account.token : undefined,
+    });
+    return { query: text, items: result.items, total: result.total };
+  }
+
+  /**
+   * `GET /npm/preflight` — 发布前自检。
+   *
+   * 把「发了才发现包名被占 / 版本重复 / 忘了 README」这几类错误提前到
+   * 本地就能发现。检查分三级：fail 会直接导致发布失败，warn 多半是遗漏，
+   * info 只是提示。
+   *
+   * 只读本地 package.json 与 registry，不写任何东西。
+   *
+   * @param {{path?: string}} options
+   * @returns {Promise<object>}
+   */
+  async npmPreflight(options) {
+    const dir = typeof options.path === 'string' && options.path.trim() !== ''
+      ? options.path.trim()
+      : process.cwd();
+    const file = path.join(dir, 'package.json');
+    let raw;
+    try {
+      raw = await readFile(file, 'utf8');
+    } catch {
+      throw httpError(404, 'NOT_FOUND', `这个目录下没有 package.json：${dir}`);
+    }
+    let doc;
+    try { doc = JSON.parse(raw); } catch {
+      throw httpError(400, 'BAD_REQUEST', 'package.json 不是合法 JSON。');
+    }
+
+    const checks = [];
+    const add = (id, level, message, hint) => checks.push({ id, level, message, hint: hint || '' });
+    const exists = async (rel) => {
+      try { await readFile(path.join(dir, rel)); return true; } catch { return false; }
+    };
+
+    const name = typeof doc.name === 'string' ? doc.name.trim() : '';
+    const version = typeof doc.version === 'string' ? doc.version.trim() : '';
+
+    if (name === '') add('name', 'fail', '缺少 name 字段', 'npm 用 name 作为包的唯一标识');
+    else if (!/^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/.test(name)) {
+      add('name', 'fail', 'name 不是合法的 npm 包名', '只能是小写字母、数字、- . _ ~；scope 用 @scope/name');
+    } else {
+      add('name', 'pass', 'name 格式合法', name);
+    }
+
+    if (version === '') add('version', 'fail', '缺少 version 字段', '发布必须带版本号');
+    else if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
+      add('version', 'fail', 'version 不是合法 semver', version);
+    } else {
+      add('version', 'pass', 'version 格式合法', version);
+    }
+
+    // registry 占用：名字被占用不一定是问题，版本重复一定是。
+    if (name !== '') {
+      const account = await this.#store.activeNpmAccount();
+      const status = await npmPackageStatus({ name, token: account ? account.token : undefined });
+      if (status.error) {
+        add('registry', 'warn', '无法查询 registry', status.error);
+      } else if (!status.exists) {
+        add('registry', 'pass', '包名未被占用', name);
+      } else {
+        add('registry', 'info', 'npm 上已存在同名包',
+          '如果这是你自己的包就正常；否则发布会被拒绝。latest 为 ' + (status.latest || '—'));
+        if (version !== '' && status.versions.includes(version)) {
+          add('version-taken', 'fail', '这个版本已经发布过',
+            version + ' 已存在，请提升版本号后再发布');
+        }
+      }
+    }
+
+    // 常见遗漏：README / LICENSE / files。
+    if (await exists('README.md')) add('readme', 'pass', 'README.md 存在', '');
+    else add('readme', 'warn', '缺少 README.md', 'npm 页面会没有说明');
+
+    const licenseFile = (await exists('LICENSE')) || (await exists('LICENSE.md'));
+    if (licenseFile) add('license', 'pass', '许可证文件存在', '');
+    else if (typeof doc.license === 'string' && doc.license !== '') {
+      add('license', 'pass', 'package.json 声明了 license', doc.license);
+    } else {
+      add('license', 'warn', '没有许可证文件，也没声明 license', '默认发布出去的包是不可自由使用的');
+    }
+
+    const files = Array.isArray(doc.files) ? doc.files : null;
+    if (files) {
+      add('files', 'pass', 'package.json 声明了 files', files.length + ' 项');
+    } else {
+      add('files', 'warn', '没有声明 files 字段', '默认会把目录下几乎所有文件都发布出去');
+    }
+
+    // 入口文件必须真实存在，否则装了也 require 不到。
+    if (typeof doc.main === 'string' && doc.main !== '') {
+      if (await exists(doc.main)) add('main', 'pass', 'main 指向的文件存在', doc.main);
+      else add('main', 'fail', 'main 指向的文件不存在', doc.main);
+    }
+
+    if (doc.private === true) {
+      add('private', 'fail', 'package.json 标了 private: true', 'private 的包无法发布，先去掉这个字段');
+    }
+
+    const counts = {
+      fail: checks.filter((row) => row.level === 'fail').length,
+      warn: checks.filter((row) => row.level === 'warn').length,
+      pass: checks.filter((row) => row.level === 'pass').length,
+      info: checks.filter((row) => row.level === 'info').length,
+    };
+
+    return {
+      path: file,
+      name,
+      version,
+      checks,
+      counts,
+      // 只有 fail 会阻止发布；warn 值得看一眼但不必拦。
+      publishable: counts.fail === 0,
+    };
+  }
+
+  /**
+   * `GET /npm/deps` — 工作区 package.json 里的依赖  /**
    * `GET /npm/deps` — 工作区 package.json 里的依赖，逐个比对 npm 上的最新版。
    *
    * 这是本插件少有的「不需要跳去别处」的 npm 能力：它读的是本地文件，
@@ -2824,6 +2963,15 @@ function buildRoutes(host) {
       data: await host.npmPackages({ size: Number(query('size')) || undefined, from: Number(query('from')) || 0 }),
     })),
     get('/npm/package', async ({ query }) => ({ data: await host.npmPackage({ name: query('name') }) })),
+    get('/npm/search', async ({ query }) => ({
+      data: await host.npmSearch({
+        q: query('q'),
+        size: Number(query('size')) || undefined,
+      }),
+    })),
+    get('/npm/preflight', async ({ query }) => ({
+      data: await host.npmPreflight({ path: query('path') }),
+    })),
     get('/npm/deps', async ({ query }) => ({
       data: await host.npmProjectDeps({ path: query('path') }),
     })),

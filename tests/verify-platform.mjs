@@ -162,8 +162,13 @@ const PROPS = {
   check('设置页有自己的平台记忆', src.includes("readPlatform('settings')"));
   check('设置页顶部有切换器', src.includes("className: 'dsh-push-settings-head'"));
   check('npm 有独立一页', src.includes("if (platform === 'npm')") && src.includes('dsh-push-settings-body'));
-  check('GitHub 页不再混入 npm 分区',
-    (src.match(/h\(NpmSection, \{ ctx \}\)/g) || []).length === 2);
+  // 三个入口必须各用一套 npm 界面：设置页管账号，侧栏找包，标签页看项目。
+  check('设置页用账号卡片 + 我的包', src.includes('h(NpmSection, { ctx })') && src.includes('h(NpmAccountCards'));
+  check('左侧栏用浏览/搜索面板', src.includes('h(NpmSearchPanel, {'));
+  check('工作区标签页用项目面板', src.includes('h(NpmProjectPanel, {'));
+  check('三个 npm 界面不是同一个组件',
+    src.includes('h(NpmSearchPanel, {') && src.includes('h(NpmProjectPanel, {')
+    && src.includes('h(NpmSection, { ctx })'));
 }
 
 let failed = 0;
