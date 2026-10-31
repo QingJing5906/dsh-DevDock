@@ -378,6 +378,19 @@ window.__ModuleLoader__.load({
       npmOtpPlaceholder: "6 位验证码",
       npmPublishAction: "发布到 npm",
       npmPublished: "已发布 {name}@{version}",
+      npmAccountSwitch: "npm 账号",
+      npmTabOverview: "概览",
+      npmTabVersions: "版本",
+      npmTabPublish: "发布",
+      npmUpdated: "更新于",
+      npmNoDate: "无日期",
+      npmNoDescription: "暂无简介",
+      npmNotMine: "他人包",
+      npmDistTags: "dist-tags",
+      npmPublishTag: "发布标签",
+      npmPublishNeedWorkspace: "需要先选择一个工作区目录才能发布。",
+      npmPublishVersionNote: "将发布的版本：{version}（取自 package.json）",
+      npmPublishConfirm: "确认发布",
       rvTitle: "推送前审查",
       rvClose: "关闭",
       rvSettings: "设置",
@@ -905,6 +918,19 @@ window.__ModuleLoader__.load({
       npmOtpPlaceholder: "6-digit code",
       npmPublishAction: "Publish to npm",
       npmPublished: "Published {name}@{version}",
+      npmAccountSwitch: "npm account",
+      npmTabOverview: "Overview",
+      npmTabVersions: "Versions",
+      npmTabPublish: "Publish",
+      npmUpdated: "Updated",
+      npmNoDate: "No date",
+      npmNoDescription: "No description",
+      npmNotMine: "Not mine",
+      npmDistTags: "dist-tags",
+      npmPublishTag: "Publish tag",
+      npmPublishNeedWorkspace: "Select a workspace directory before publishing.",
+      npmPublishVersionNote: "Version to publish: {version} (from package.json)",
+      npmPublishConfirm: "Confirm publish",
       rvTitle: "Pre-push review",
       rvClose: "Close",
       rvSettings: "Settings",
@@ -1709,14 +1735,17 @@ window.__ModuleLoader__.load({
 .dsh-push-page-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px 16px 16px; }
 .dsh-push-page-foot { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 16px;
   border-top: 1px solid var(--dsw-alias-border-l1); flex-wrap: wrap; }
-.dsh-push-search { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; flex: 1 1 220px;
-/* 面板内的搜索框：不拉伸、更矮，和旁边的按钮同高。
- * 宽页面版（上面那条）用的是 1 1 220px，在侧栏里会被撑满整行。 */
-.dsh-push-search--compact { flex: 1 1 auto; min-width: 0; max-width: none;
-  height: 24px; padding: 0 6px; border-radius: 6px; gap: 5px; }
-.dsh-push-search--compact input { font-size: 12px; }
-  border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-bg-layer-1);
+.dsh-push-search { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px;
+  flex: 1 1 220px;
+  border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-secondary); }
+/* 面板内的搜索框：不拉伸、更矮，和旁边的按钮同高。
+ * 宽页面版上面那条用的是 1 1 220px，放进 260px 的侧栏会被撑满整行。
+ * 注意这是独立规则，必须写在宿主规则之外——写进去会变成嵌套选择器。 */
+.dsh-push-search--compact { flex: 1 1 0%; min-width: 0;
+  height: 22px; padding: 0 6px; border-radius: 6px; gap: 5px; }
+.dsh-push-search--compact input { font-size: 12px; }
 .dsh-push-search input { flex: 1 1 auto; min-width: 0; height: 100%; border: 0; outline: none;
   background: transparent; color: var(--dsw-alias-label-primary); font-size: 13px; }
 .dsh-push-repo { border-bottom: 1px solid var(--dsw-alias-border-l1); }
@@ -1997,9 +2026,9 @@ window.__ModuleLoader__.load({
 /* ── npm 三处界面各自的形状 ─────────────────────────────────────── */
 /* 侧栏：浏览 */
 .dsh-push-npm-browse { display: flex; flex-direction: column; gap: 6px; }
-.dsh-push-npm-searchrow { display: flex; align-items: center; gap: 6px;
-  padding: 5px 8px; border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 8px; background: var(--dsw-alias-bg-layer-1); }
+.dsh-push-npm-searchrow { width: 100%; }
+/* 外观（高度/边框/圆角）全部由 .dsh-push-search 提供，这里不再重复声明，
+ * 否则两套 padding 叠加会让它比仓库面板的搜索框更高。 */
 .dsh-push-npm-searchrow input { flex: 1 1 auto; min-width: 0; font: inherit;
   font-size: 12px; border: 0; outline: none; background: transparent;
   color: var(--dsw-alias-label-primary); }
@@ -2023,7 +2052,43 @@ window.__ModuleLoader__.load({
 .dsh-push-npm-check-msg { font-size: 12px;
   color: var(--dsw-alias-label-primary); }
 
-/* 初始化卡片 */
+/* ── npm 包卡片：与 repo 卡片同构（固定高度、描述两行、指标在底部） ── */
+.dsh-push-pkgcard { display: flex; flex-direction: column; gap: 6px;
+  min-height: 148px; padding: 12px;
+  border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1); }
+.dsh-push-pkgcard:hover { border-color: var(--dsw-alias-border-l3); }
+.dsh-push-pkgcard--large { min-height: 168px; }
+.dsh-push-pkgcard-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dsh-push-pkgcard-name { flex: 1 1 auto; min-width: 0; font-size: 13px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsh-push-pkgcard-meta { display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--dsw-alias-label-secondary); }
+/* 描述是卡片里唯一会变化的部分，因此也限定两行并裁掉溢出，
+ * 保证一排卡片永远等高。 */
+.dsh-push-pkgcard-desc { flex: 1 1 auto; font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; }
+.dsh-push-pkgcard-metrics { display: flex; align-items: center; gap: 10px;
+  font-size: 11px; color: var(--dsw-alias-label-secondary); }
+.dsh-push-pkgcard-metric { display: inline-flex; align-items: center; gap: 4px; }
+.dsh-push-pkgcard-actions { display: flex; align-items: center; gap: 6px;
+  padding-top: 2px; }
+
+/* ── npm 管理弹窗内部分页 ── */
+.dsh-push-modal-tabs { flex: none; padding: 0 0 8px; }
+.dsh-push-modal-page { display: flex; flex-direction: column; gap: 10px; }
+.dsh-push-npm-versions { display: flex; flex-direction: column; gap: 1px;
+  max-height: 300px; overflow: auto; }
+
+/* npm 账号选择器：与 GitHub 面板的账号下拉同形，只是前面多一个 npm 标记 *//* npm 账号选择器：与 GitHub 面板的账号下拉同形，只是前面多一个 npm 标记 */
+.dsh-push-npm-picker { display: inline-flex; align-items: center; gap: 4px;
+  flex: none; min-width: 0; max-width: 150px; }
+.dsh-push-npm-picker-select { max-width: 128px; height: 24px; font-size: 12px;
+  padding: 0 4px; overflow: hidden; text-overflow: ellipsis; }
+
+/* 初始化卡片 *//* 初始化卡片 */
 .dsh-push-npm-init { display: flex; flex-direction: column; gap: 8px;
   padding: 10px 12px 12px; }
 
@@ -5266,6 +5331,407 @@ function SidebarIcon(props) {
  *
  * @param {{ctx: object}} props
  */
+/**
+ * npm 账号选择器（面板头部用）。
+ *
+ * 和 GitHub 面板头部的行为一致：显示当前账号、可以就地切换、切换后通知
+ * 父级重新读取数据。没有账号时不渲染空下拉，而是给一条去设置添加入口。
+ *
+ * @param {{ctx: object, onChange?: () => void, compact?: boolean}} props
+ */
+function NpmAccountPicker(props) {
+  const ctx = props.ctx;
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const next = await api(ctx, API + '/npm/accounts');
+      setData(next || { accounts: [], activeId: null });
+      npmAccountCache.length = 0;
+      if (next && Array.isArray(next.accounts)) npmAccountCache.push(...next.accounts);
+    } catch {
+      setData({ accounts: [], activeId: null });
+    }
+  }, [ctx]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const switchTo = async (id) => {
+    if (!id) return;
+    setBusy(true);
+    try {
+      await api(ctx, API + '/npm/account/active', { method: 'POST', body: { id } });
+      await load();
+      if (typeof props.onChange === 'function') props.onChange();
+    } catch (err) {
+      // 失败时不做乐观更新：界面停在旧账号，错误交给上层提示。
+      if (typeof props.onError === 'function') props.onError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const list = (data && data.accounts) || [];
+  if (list.length === 0) return null;
+  const activeId = data ? data.activeId : null;
+
+  return h('div', { className: 'dsh-push-npm-picker' },
+    h(NpmMark, { size: 14 }),
+    h('select', {
+      className: 'dsh-push-select dsh-push-npm-picker-select',
+      value: activeId || '',
+      'aria-label': t('npmAccountSwitch'),
+      disabled: busy,
+      onChange: (e) => switchTo(e.target.value),
+    }, list.map((account) => h('option', {
+      key: account.id,
+      value: account.id,
+    }, account.login))));
+}
+
+/* ───────────── npm 包卡片 + 管理弹窗（对齐 GitHub 的列表/卡片） ───────────── */
+
+/**
+ * 一张包卡片。
+ *
+ * 结构与 RepoCard 一致：固定的最小高度、描述只占两行、指标固定在底部，
+ * 这样一排卡片永远对齐。npm 没有 star/fork，对应的位置放版本数、体积
+ * 和最近发布时间——同样是「一眼能比的三个数字」。
+ *
+ * @param {{pkg: object, size: string, onOpen: () => void, onManage: () => void}} props
+ */
+function NpmPackageCard(props) {
+  const pkg = props.pkg || {};
+  const large = props.size === 'large';
+  const canInstall = typeof pkg.name === 'string' && pkg.name !== '';
+
+  return h('div', {
+    className: 'dsh-push-pkgcard' + (large ? ' dsh-push-pkgcard--large' : ''),
+  },
+    h('div', { className: 'dsh-push-pkgcard-head' },
+      h('span', { className: 'dsh-push-pkgcard-name', title: pkg.name }, pkg.name),
+      pkg.version
+        ? h('span', { className: 'dsh-push-pill dsh-push-pill--idle' }, 'v' + pkg.version)
+        : null),
+
+    h('div', { className: 'dsh-push-pkgcard-meta' },
+      h(Icon, { name: 'branch', size: 11 }),
+      h('span', null, pkg.date ? t('npmUpdated') + ' ' + relativeTime(pkg.date) : t('npmNoDate'))),
+
+    h('div', { className: 'dsh-push-pkgcard-desc' },
+      pkg.description || h('span', { className: 'dsh-push-rv-muted' }, t('npmNoDescription'))),
+
+    h('div', { className: 'dsh-push-pkgcard-metrics' },
+      h('span', { className: 'dsh-push-pkgcard-metric' },
+        h(Icon, { name: 'branch', size: 11 }),
+        h('span', null, pkg.versions || '—')),
+      pkg.license
+        ? h('span', { className: 'dsh-push-pkgcard-metric' }, pkg.license)
+        : null,
+      pkg.owned === false
+        ? h('span', { className: 'dsh-push-pkgcard-metric dsh-push-rv-muted' }, t('npmNotMine'))
+        : null),
+
+    h('div', { className: 'dsh-push-pkgcard-actions' },
+      h(Btn, { mini: true, onClick: props.onManage }, t('manageOpen')),
+      canInstall
+        ? h(Btn, {
+          mini: true,
+          onClick: () => copyText('npm i ' + pkg.name),
+        }, t('npmCopyInstall'))
+        : null));
+}
+
+/**
+ * npm 包的列表行。
+ *
+ * 与 RepoCard 的列表模式对应：名字点开管理弹窗，其余部分展开详情。
+ */
+function NpmPackageRow(props) {
+  const pkg = props.pkg || {};
+  const open = Boolean(props.expanded);
+  return h('div', { className: 'dsh-push-repo' },
+    h('div', { className: 'dsh-push-repo-head', onClick: props.onToggle },
+      h(Icon, { name: 'chevron', size: 12 }),
+      h('button', {
+        type: 'button',
+        className: 'dsh-push-repo-name dsh-push-repo-name--link',
+        title: pkg.name + ' — ' + t('manageOpen'),
+        onClick: (event) => {
+          if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+          props.onManage();
+        },
+      }, pkg.name),
+      pkg.version ? h('span', { className: 'dsh-push-pill' }, 'v' + pkg.version) : null,
+      h('span', { className: 'dsh-push-repo-meta' },
+        pkg.date ? relativeTime(pkg.date) : '—')),
+
+    pkg.description
+      ? h('div', { className: 'dsh-push-repo-desc', title: pkg.description }, pkg.description)
+      : null,
+
+    open
+      ? h('div', { className: 'dsh-push-repo-detail' },
+        h('div', { className: 'dsh-push-row-hint' },
+          t('npmFactVersions') + ': ' + (pkg.versions || '—')
+          + (pkg.license ? ' · ' + pkg.license : '')),
+
+        h('div', { className: 'dsh-push-npm-install' },
+          h('code', { className: 'dsh-push-mono' }, 'npm i ' + pkg.name),
+          h(Btn, { mini: true, onClick: () => copyText('npm i ' + pkg.name) },
+            t('npmCopyInstall'))),
+
+        h('div', { className: 'dsh-push-actions' },
+          h(Btn, { onClick: props.onManage }, t('manageOpen')),
+          pkg.links && pkg.links.npm
+            ? h('a', {
+              className: 'dsh-push-btn',
+              href: pkg.links.npm,
+              target: '_blank',
+              rel: 'noreferrer',
+            }, h(Icon, { name: 'external', size: 12 }), t('repoOpen'))
+            : null))
+      : null);
+}
+
+/**
+ * npm 包管理弹窗。
+ *
+ * 意图与 RepoManageModal 完全对齐：一个居中弹窗，顶部是包名与状态，下面
+ * 分「概览 / 版本 / 设置」三页。发布新版本也在这里，因为「发布」本就是
+ * 这个包的一个动作，而不是一个独立页面。
+ *
+ * 与 GitHub 那个弹窗的差别只在字段：npm 没有协作者/分支，换成 dist-tags
+ * 与依赖；发布用版本号 + 标签，而不是 tag + release notes。
+ *
+ * @param {{open: boolean, ctx: object, pkg: object, cwd?: string, onClose: () => void, onChanged?: () => void}} props
+ */
+function NpmPackageModal(props) {
+  const ctx = props.ctx;
+  const pkg = props.pkg || {};
+  const name = typeof pkg.name === 'string' ? pkg.name : '';
+  const cwd = props.cwd || '';
+  const open = Boolean(props.open && name !== '');
+
+  const [tab, setTab] = useState('overview');
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
+
+  /* 发布表单 */
+  const [publishVersion, setPublishVersion] = useState('');
+  const [publishTag, setPublishTag] = useState('latest');
+  const [otp, setOtp] = useState('');
+  const [needOtp, setNeedOtp] = useState(false);
+  const [publishArm, setPublishArm] = useState(false);
+
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const id = setTimeout(() => { if (aliveRef.current) setNotice(''); }, TOAST_MS);
+    return () => clearTimeout(id);
+  }, [notice]);
+
+  const load = useCallback(async () => {
+    if (name === '') return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await api(ctx, API + '/npm/package?name=' + encodeURIComponent(name));
+      if (!aliveRef.current) return;
+      const info = data && data.pkg ? data.pkg : null;
+      setDetail(info);
+      // 发布版本默认填「下一个补丁版」，省掉一次手算。
+      if (info && info.latestVersion) {
+        const parts = String(info.latestVersion).split('.');
+        const patch = Number(parts[2] || 0);
+        if (Number.isFinite(patch)) {
+          setPublishVersion(parts[0] + '.' + parts[1] + '.' + (patch + 1));
+        }
+      }
+    } catch (err) {
+      if (aliveRef.current) setError(err.message);
+    } finally {
+      if (aliveRef.current) setLoading(false);
+    }
+  }, [ctx, name]);
+
+  useEffect(() => {
+    if (!open) return;
+    setTab('overview');
+    setDetail(null);
+    setError('');
+    setNotice('');
+    setPublishArm(false);
+    setNeedOtp(false);
+    setOtp('');
+    load();
+  }, [open, load]);
+
+  const publish = async () => {
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const data = await api(ctx, API + '/npm/publish', {
+        method: 'POST',
+        body: { path: cwd, otp: otp.trim(), tag: publishTag.trim() },
+      });
+      if (aliveRef.current) {
+        setNotice(t('npmPublished', { name: data.name, version: data.version }));
+        setPublishArm(false);
+        setNeedOtp(false);
+        setOtp('');
+      }
+      await load();
+      if (typeof props.onChanged === 'function') props.onChanged();
+    } catch (err) {
+      if (err.code === 'UNAUTHORIZED') setNeedOtp(true);
+      if (aliveRef.current) setError(err.message);
+    } finally {
+      if (aliveRef.current) setBusy(false);
+    }
+  };
+
+  if (!open) return null;
+
+  const facts = detail
+    ? h('div', { className: 'dsh-push-npm-facts' },
+      packageFact(t('npmFactVersions'), String(detail.versionCount)),
+      packageFact(t('npmFactSize'), formatBytes(detail.unpackedSize)),
+      packageFact(t('npmFactFiles'), detail.fileCount === null ? '—' : String(detail.fileCount)),
+      packageFact(t('npmFactLicense'), detail.license || '—'),
+      packageFact(t('npmFactDeps'), String(Object.keys(detail.dependencies || {}).length)))
+    : null;
+
+  const overview = h('div', { className: 'dsh-push-modal-page' },
+    facts,
+    detail
+      ? h('div', { className: 'dsh-push-npm-install' },
+        h('code', { className: 'dsh-push-mono' }, 'npm i ' + detail.name + '@' + detail.latestVersion),
+        h(Btn, {
+          mini: true,
+          onClick: () => copyText('npm i ' + detail.name + '@' + detail.latestVersion),
+        }, t('npmCopyInstall')))
+      : null,
+    detail && Object.keys(detail.distTags || {}).length > 0
+      ? h('div', { className: 'dsh-push-field' },
+        h('span', { className: 'dsh-push-field-label' }, t('npmDistTags')),
+        h('div', { className: 'dsh-push-chips' },
+          Object.entries(detail.distTags).map(([tag, version]) =>
+            h('span', { key: tag, className: 'dsh-push-pill' }, tag + ' → ' + version))))
+      : null,
+    detail && Object.keys(detail.dependencies || {}).length > 0
+      ? h('div', { className: 'dsh-push-field' },
+        h('span', { className: 'dsh-push-field-label' }, t('npmDepsOfLatest')),
+        h('div', { className: 'dsh-push-npm-depnames' },
+          Object.entries(detail.dependencies).slice(0, 30).map(([dep, range]) =>
+            h('span', { key: dep, className: 'dsh-push-pill dsh-push-pill--idle' },
+              dep + ' ' + range))))
+      : null,
+    detail && detail.repository
+      ? h('div', { className: 'dsh-push-row-hint' }, detail.repository)
+      : null);
+
+  const versions = h('div', { className: 'dsh-push-modal-page' },
+    detail
+      ? h('div', { className: 'dsh-push-npm-versions' },
+        detail.versions.map(renderVersionRow))
+      : h('div', { className: 'dsh-push-hint' }, loading ? t('loading') : '—'));
+
+  /* 发布页：这是「发布版本」的入口，也是这个弹窗存在的主要理由之一。 */
+  const publishPage = h('div', { className: 'dsh-push-modal-page' },
+    h('div', { className: 'dsh-push-hint' }, t('npmPublishHint')),
+
+    !cwd
+      ? h('div', { className: 'dsh-push-error' }, t('npmPublishNeedWorkspace'))
+      : null,
+
+    h('div', { className: 'dsh-push-field' },
+      h('span', { className: 'dsh-push-field-label' }, t('npmPublishTag')),
+      h('input', {
+        className: 'dsh-push-input',
+        type: 'text',
+        value: publishTag,
+        spellCheck: false,
+        style: { width: '160px' },
+        onChange: (e) => setPublishTag(e.target.value),
+      })),
+
+    needOtp
+      ? h('div', { className: 'dsh-push-field' },
+        h('span', { className: 'dsh-push-field-label' }, t('npmOtpPlaceholder')),
+        h('input', {
+          className: 'dsh-push-input',
+          type: 'text',
+          value: otp,
+          inputMode: 'numeric',
+          maxLength: 8,
+          style: { width: '120px' },
+          onChange: (e) => setOtp(e.target.value),
+        }))
+      : null,
+
+    h('div', { className: 'dsh-push-row-hint' },
+      t('npmPublishVersionNote', { version: publishVersion || '—' })),
+
+    /* 发布是不可逆写操作：走两步确认，和删除仓库那个模式一致。 */
+    publishArm
+      ? h('div', { className: 'dsh-push-actions' },
+        h(Btn, {
+          kind: 'danger',
+          disabled: busy,
+          onClick: publish,
+        }, busy ? t('loading') : t('npmPublishConfirm')),
+        h(Btn, { disabled: busy, onClick: () => setPublishArm(false) }, t('cancel')))
+      : h('div', { className: 'dsh-push-actions' },
+        h(Btn, {
+          kind: 'primary',
+          disabled: busy || !cwd,
+          onClick: () => setPublishArm(true),
+        }, t('npmPublishAction'))),
+
+    error ? h('div', { className: 'dsh-push-error' }, error) : null,
+    notice ? h('div', { className: 'dsh-push-ok' }, notice) : null);
+
+  const page = tab === 'overview' ? overview : (tab === 'versions' ? versions : publishPage);
+
+  return h(Modal, {
+    open,
+    onClose: props.onClose,
+    title: name,
+    wide: true,
+    footer: [
+      h('div', { className: 'dsh-push-modal-status', key: 'status' },
+        loading ? h('span', { className: 'dsh-push-row-hint' }, t('loading')) : null,
+        notice ? h('div', { className: 'dsh-push-ok' }, notice) : null),
+      h(Btn, { key: 'refresh', mini: true, onClick: load }, t('refresh')),
+      h(Btn, { key: 'close', onClick: props.onClose }, t('close')),
+    ],
+  },
+    h('div', { className: 'dsh-push-modal-tabs' },
+      h(Segmented, {
+        value: tab,
+        onChange: setTab,
+        options: [
+          { value: 'overview', label: t('npmTabOverview') },
+          { value: 'versions', label: t('npmTabVersions') },
+          { value: 'publish', label: t('npmTabPublish') },
+        ],
+      })),
+    h('div', { className: 'dsh-push-modal-body' },
+      error && tab !== 'publish' ? h('div', { className: 'dsh-push-error' }, error) : null,
+      page));
+}
+
 /* ───────────── npm 账号卡片（仅设置页） ───────────── */
 
 /**
@@ -5438,6 +5904,10 @@ function NpmSearchPanel(props) {
   const [error, setError] = useState('');
   const [openName, setOpenName] = useState('');
   const [detail, setDetail] = useState(null);
+  // 列表 / 卡片，与 GitHub 面板同样的两种密度；偏好各自独立保存。
+  const [viewMode, setViewMode] = useState(() => readViewPref('npm.panel', 'list'));
+  const [cardSize, setCardSize] = useState(() => readViewPref('npm.panel.size', 'small'));
+  const [managePkg, setManagePkg] = useState(null);
   const aliveRef = useRef(true);
 
   useEffect(() => {
@@ -5542,6 +6012,13 @@ function NpmSearchPanel(props) {
         onClick: () => { setTerm(query.trim()); search(query); },
       }, h(Icon, { name: 'search', size: 12 })));
 
+  const viewSwitch = h(ViewSwitch, {
+    mode: viewMode,
+    size: cardSize,
+    onMode: (next) => { setViewMode(next); writeViewPref('npm.panel', next); },
+    onSize: (next) => { setCardSize(next); writeViewPref('npm.panel.size', next); },
+  });
+
   const meta = h('div', { className: 'dsh-push-row-hint dsh-push-npm-searchmeta' },
     busy
       ? t('loading')
@@ -5550,17 +6027,44 @@ function NpmSearchPanel(props) {
         : t('npmSearchResult', { q: term, n: (items || []).length })));
 
   const rows = items || [];
+  const emptyHint = term === '' ? t('npmNoPackages') : t('npmSearchEmpty');
   const body = rows.length === 0
-    ? (busy ? null : h('div', { className: 'dsh-push-empty' },
-      term === '' ? t('npmNoPackages') : t('npmSearchEmpty')))
-    : h('div', { className: 'dsh-push-rows' }, rows.map(row));
+    ? (busy ? null : h('div', { className: 'dsh-push-empty' }, emptyHint))
+    : (viewMode === 'card'
+      ? h('div', {
+        key: 'npm-cards',
+        className: 'dsh-push-repocards'
+          + (cardSize === 'large' ? ' dsh-push-repocards--large' : ''),
+      }, rows.map((pkg) => h(NpmPackageCard, {
+        key: pkg.name,
+        pkg,
+        size: cardSize,
+        onOpen: () => setManagePkg(pkg),
+        onManage: () => setManagePkg(pkg),
+      })))
+      : h('div', { className: 'dsh-push-rows' }, rows.map((pkg) => h(NpmPackageRow, {
+        key: pkg.name,
+        pkg,
+        expanded: openName === pkg.name,
+        onToggle: () => open(pkg.name),
+        onManage: () => setManagePkg(pkg),
+      }))));
 
   return h('div', { className: 'dsh-push-npm-browse' },
     searchRow,
+    viewSwitch,
     props.available ? null : h('div', { className: 'dsh-push-hint' }, t('npmNeedLogin')),
     error ? h('div', { className: 'dsh-push-error' }, error) : null,
     meta,
-    body);
+    body,
+    h(NpmPackageModal, {
+      open: Boolean(managePkg),
+      ctx,
+      pkg: managePkg,
+      cwd: props.cwd || '',
+      onClose: () => setManagePkg(null),
+      onChanged: () => { if (term === '') loadMine(); else search(term); },
+    }));
 }
 
 /**
@@ -5880,6 +6384,10 @@ function NpmProjectPanel(props) {
 function NpmSection(props) {
   const ctx = props.ctx;
   const [packages, setPackages] = useState(null);
+  // 与左侧栏各自记住视图偏好：设置页更宽，默认用卡片。
+  const [viewMode, setViewMode] = useState(() => readViewPref('npm.section', 'card'));
+  const [cardSize, setCardSize] = useState(() => readViewPref('npm.section.size', 'small'));
+  const [managePkg, setManagePkg] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const aliveRef = useRef(true);
@@ -5919,7 +6427,32 @@ function NpmSection(props) {
   const rows = packages || [];
   const list = rows.length === 0
     ? h('div', { className: 'dsh-push-hint' }, t('npmNoPackages'))
-    : h('div', { className: 'dsh-push-rows' }, rows.map(pkgRow));
+    : (viewMode === 'card'
+      ? h('div', {
+        key: 'npm-section-cards',
+        className: 'dsh-push-repocards'
+          + (cardSize === 'large' ? ' dsh-push-repocards--large' : ''),
+      }, rows.map((pkg) => h(NpmPackageCard, {
+        key: pkg.name,
+        pkg,
+        size: cardSize,
+        onOpen: () => setManagePkg(pkg),
+        onManage: () => setManagePkg(pkg),
+      })))
+      : h('div', { className: 'dsh-push-rows' }, rows.map((pkg) => h(NpmPackageRow, {
+        key: pkg.name,
+        pkg,
+        expanded: false,
+        onToggle: () => setManagePkg(pkg),
+        onManage: () => setManagePkg(pkg),
+      }))));
+
+  const viewSwitch = h(ViewSwitch, {
+    mode: viewMode,
+    size: cardSize,
+    onMode: (next) => { setViewMode(next); writeViewPref('npm.section', next); },
+    onSize: (next) => { setCardSize(next); writeViewPref('npm.section.size', next); },
+  });
 
   return h('div', { className: 'dsh-push-npm-settings' },
     h(NpmAccountCards, { ctx, onChanged: loadPackages }),
@@ -5928,8 +6461,17 @@ function NpmSection(props) {
         h('span', null, t('npmPackagesSection')),
         h(Btn, { mini: true, disabled: busy, onClick: refresh },
           busy ? t('loading') : t('refresh'))),
+      viewSwitch,
       error ? h('div', { className: 'dsh-push-error' }, error) : null,
-      list));
+      list),
+    h(NpmPackageModal, {
+      open: Boolean(managePkg),
+      ctx,
+      pkg: managePkg,
+      cwd: '',
+      onClose: () => setManagePkg(null),
+      onChanged: loadPackages,
+    }));
 }
 
 /**
@@ -6354,6 +6896,11 @@ function NpmDepsSection(props) {
           h('div', { className: 'dsh-push-page-head' },
             h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
             h('span', { className: 'dsh-push-page-spacer' }),
+            // 和 GitHub 面板一样，头部显示并能切换当前账号。
+            h(NpmAccountPicker, {
+              ctx,
+              onChange: () => setNpmReload((n) => n + 1),
+            }),
             h(Btn, { mini: true, onClick: () => setNpmReload((n) => n + 1), title: t('refresh') },
               h(Icon, { name: 'refresh', size: 12 }))),
           h('div', { className: 'dsh-push-page-body' },
@@ -8761,6 +9308,8 @@ function ReviewDialog(props) {
             h('div', { className: 'dsh-push-tab-repo' },
               h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
               h('span', { className: 'dsh-push-page-spacer' }),
+              // 发布用的令牌来自当前账号，所以这里必须能看见并切换它。
+              h(NpmAccountPicker, { ctx }),
               h(Btn, { mini: true, onClick: () => refresh(false), title: t('refresh') },
                 h(Icon, { name: 'refresh', size: 12 })))),
           h('div', { className: 'dsh-push-scroll' },
