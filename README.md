@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-plugin-4c6ef5.svg)](https://github.com/deepseek-ai)
-[![npm](https://img.shields.io/badge/npm-dsh--harness--push-cb3837.svg)](https://www.npmjs.com/package/dsh-devdock)
+[![npm](https://img.shields.io/badge/npm-dsh--devdock-cb3837.svg)](https://www.npmjs.com/package/dsh-devdock)
 [![node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
 
 ---
@@ -20,16 +20,16 @@
 | 模块 | 状态 | 能力 |
 |---|---|---|
 | **GitHub / Git** | ✅ 已发布 | 多账号、仓库浏览与管理、工作区推送/撤回、版本树、推送前 Agent 审查 |
+| **npm** | ✅ 已发布 | 多账号、包的列表/卡片视图、打包审查、发布前审查、发布与发布前自检 |
 | **Cloudflare** | 🔜 规划中 | 仪表板、Workers、Pages |
-| **npm** | 🔜 规划中 | 账号、包与版本 |
 
-> 当前仓库承载第一个模块。第二个模块落地时会改成 `packages/` 单仓多包结构，**仓库地址与 star 不变**。
+> 当前仓库承载已发布的两个模块（GitHub / Git 与 npm）。后续模块落地时会改成 `packages/` 单仓多包结构，**仓库地址与 star 不变**。
 
 ---
 
 ## 项目简介
 
-`dsh-devdock` 是 DevDock 套件的 GitHub / Git 模块。它把「看仓库、切账号、提交、推送、撤回」这些每天都要做的事收进 Harness 一个面板里，并把**推送前审查**交给模型——让即将离开本机的内容先被检查一遍。
+`dsh-devdock` 是 DevDock 套件。它把「看仓库、切账号、提交、推送、撤回」这些每天都要做的事收进 Harness 一个面板里，并把**推送前审查**交给模型——让即将离开本机的内容先被检查一遍。npm 侧则覆盖「找包、看包、打包、发布前审查、发布」这一整条链路。
 
 它由两半组成：Host 侧提供一套完整的 GitHub REST 与 Git 命令封装（含令牌安全注入），Client 侧提供设置页、左侧仓库面板和工作区侧边栏。两侧共享同一套服务方法，所以**你在界面上做的操作，和智能体通过工具做的操作，行为完全一致**。
 
