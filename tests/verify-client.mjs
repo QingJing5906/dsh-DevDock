@@ -369,7 +369,7 @@ function runApply(label) {
   check('review: saved presets can be deleted', src.includes("'/review/presets/delete'"));
 
   // Every endpoint the flow needs.
-  for (const endpoint of ['/review/presets', '/review/models', '/review/run']) {
+  for (const endpoint of ['/review/presets', '/review/models', '/review/project']) {
     check(`review: calls ${endpoint}`, src.includes(`'${endpoint}'`));
   }
 

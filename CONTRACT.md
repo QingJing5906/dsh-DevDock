@@ -504,3 +504,16 @@ create_repo · release · review
 - schema 只能用宿主支持的子集（`type` / `oneOf` / `properties` / `required` /
   `additionalProperties` / `items` / `enum` / `const`）；`type: [...]` 与 `anyOf`
   会让整个注册失败，工具从此对模型不可见
+
+### `/review/project`
+
+一次审查覆盖整个项目：git 未提交改动 + npm 包内容，交给同一套规则扫描
+与模型审查。返回的每条 finding 带 `scope`（`git` / `npm`），界面据此分组。
+
+请求体：`{ path, presetIds, customPrompt, provider, model, reasoningEffort,
+includeGit, includePack }`。`includeGit` / `includePack` 默认都是 true；
+GitHub 面板只关心 git 改动，传 `includePack: false`。
+
+响应与 `/review/run` 同形，另加 `scope: "project"`、`skipped`（被跳过的
+来源与原因）与 `pack`（包体积信息）。
+

@@ -113,12 +113,12 @@ const reviewBody = methodBody(hostSrc, 'async npmPublishReview(body) {');
 
 /* ---- 6. 界面契约 ---- */
 {
-  check('存在 NpmReviewDialog', clientSrc.includes('function NpmReviewDialog('));
+  check('存在 ProjectReviewDialog', clientSrc.includes('function ProjectReviewDialog('));
   check('对话框读取 /review/presets（与 GitHub 同一个目录）',
-    /NpmReviewDialog[\s\S]{0,2500}?review\/presets/.test(clientSrc));
-  check('对话框读取 /review/models', /NpmReviewDialog[\s\S]{0,2500}?review\/models/.test(clientSrc));
+    /ProjectReviewDialog[\s\S]{0,2500}?review\/presets/.test(clientSrc));
+  check('对话框读取 /review/models', /ProjectReviewDialog[\s\S]{0,2500}?review\/models/.test(clientSrc));
   check('发布页有审查入口', clientSrc.includes("t('npmReviewOpen')"));
-  check('审查对话框已挂载到发布弹窗', clientSrc.includes('h(NpmReviewDialog, {'));
+  check('审查对话框已挂载到发布弹窗', clientSrc.includes('h(ProjectReviewDialog, {'));
   check('阻断级问题会给出提示', clientSrc.includes('npmReviewBlocker'));
   check('中英双语文案齐全',
     clientSrc.includes('npmReviewTitle: "发布前审查"')

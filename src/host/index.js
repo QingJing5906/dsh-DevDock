@@ -65,7 +65,7 @@ deleteRepo,
 } from './github.js';
 
 // 工作区依赖检查需要读本地 package.json。
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 // DevDock 的 npm 模块（只读：认账号、列包、看版本）。
@@ -3041,6 +3041,194 @@ export class GithubLinkHost extends ServiceClass {
   }
 
   /**
+   * `POST /review/project` — 一次审查覆盖整个项目。
+   *
+   * 同一份代码既是 git 的改动源，也是 npm 的发布内容。分别跑两次审查
+   * 既慢又会让同一问题报两遍。这里一次收齐：
+   *
+   *   - git：未提交改动（存在仓库时）
+   *   - npm：npm pack 会打进去的文件（存在 package.json 时）
+   *
+   * 结果按 scope 标注来源，界面据此分组；用户在各自插件里提交即可。
+   *
+   * @param {object} body `{ path, presetIds, customPrompt, provider, model,
+   *   reasoningEffort, includeGit, includePack, maxFiles }`
+   * @returns {Promise<object>}
+   */
+  async reviewProject(body) {
+    const dir = typeof body.path === 'string' && body.path.trim() !== ''
+      ? body.path.trim()
+      : process.cwd();
+
+    const collections = [];
+    const skipped = [];
+
+    /* ---- 1. git 改动 ---- */
+    const wantGit = body.includeGit !== false;
+    if (wantGit) {
+      const gitDir = path.join(dir, '.git');
+      let isRepo = false;
+      try { isRepo = (await stat(gitDir)).isDirectory(); } catch { isRepo = false; }
+      if (isRepo) {
+        try {
+          const { runner, secrets } = await this.#runnerAndSecrets();
+          const root = (await runner.assertRepo(dir, { secrets })).root;
+          const changes = await collectReviewChanges(runner, root, {
+            staged: false,
+            maxFiles: Number.isFinite(body.maxFiles) ? Number(body.maxFiles) : 60,
+            secrets,
+          });
+          for (const chunk of changes.chunks) {
+            collections.push({ scope: 'git', path: chunk.path, text: chunk.text });
+          }
+          if (changes.truncated) skipped.push({ scope: 'git', reason: '改动过多，已截断' });
+        } catch (error) {
+          skipped.push({ scope: 'git', reason: error.message });
+        }
+      } else {
+        skipped.push({ scope: 'git', reason: '不是 git 仓库' });
+      }
+    }
+
+    /* ---- 2. npm 包内容 ---- */
+    const wantPack = body.includePack !== false;
+    let packed = null;
+    if (wantPack) {
+      try {
+        await readFile(path.join(dir, 'package.json'), 'utf8');
+        const runner = this.#npmRunner();
+        packed = mapPackResult(parsePackJson(
+          (await runner.run(['pack', '--dry-run', '--json'], { cwd: dir })).stdout,
+        ));
+        const maxBytes = MAX_FILE_BYTES;
+        for (const row of packed.files) {
+          const rel = row.path.replace(/\/$/, '');
+          if (/(^|\/)(node_modules|\.git)\//.test(rel)) continue;
+          // 已经在 git 里出现过的文件不重复审：同一份内容只报一次。
+          if (collections.some((row2) => row2.path === rel)) continue;
+          if (row.size > maxBytes) {
+            skipped.push({ scope: 'npm', reason: `${rel} 过大` });
+            continue;
+          }
+          try {
+            const text = await readFile(path.join(dir, rel), 'utf8');
+            if (text.includes('\u0000')) continue;
+            collections.push({ scope: 'npm', path: rel, text });
+          } catch { /* 读不到就跳过 */ }
+        }
+      } catch (error) {
+        skipped.push({ scope: 'npm', reason: error.code === 'ENOENT' ? '没有 package.json' : error.message });
+      }
+    }
+
+    /* ---- 3. 规则扫描 ---- */
+    const ruleFindings = [];
+    for (const row of collections) {
+      for (const finding of scanSecrets(row.text, { file: row.path })) {
+        ruleFindings.push({ ...normalizeFinding(finding), scope: row.scope });
+      }
+    }
+
+    /* ---- 4. 模型审查（一次覆盖全部内容） ---- */
+    const presetIds = Array.isArray(body.presetIds)
+      ? body.presetIds.filter((id) => typeof id === 'string' && id !== '')
+      : [];
+    const stored = await this.#store.reviewPresets();
+    const chosen = [
+      ...BUILTIN_PRESETS.filter((preset) => presetIds.includes(preset.id)),
+      ...stored.filter((preset) => presetIds.includes(preset.id)),
+    ];
+    const customPrompt = optionalString(body.customPrompt) ?? '';
+
+    const llm = this.#llm();
+    let provider = optionalString(body.provider);
+    let model = optionalString(body.model);
+    if (llm && (!provider || !model)) {
+      try {
+        const fallback = await this.reviewModels();
+        if (fallback.default) {
+          provider = provider ?? fallback.default.provider;
+          model = model ?? fallback.default.model;
+        }
+      } catch { /* 保留调用方的值 */ }
+    }
+
+    let modelFindings = [];
+    let summary = '';
+    let usage;
+    let degraded = false;
+
+    const scopes = new Set(collections.map((row) => row.scope));
+    if (collections.length === 0) {
+      summary = '没有可审查的内容：既没有未提交的 git 改动，也没有可打包的 npm 文件。';
+    } else if (!llm) {
+      degraded = true;
+      summary = '宿主未提供 llm 服务，本次只执行了规则检查（敏感信息扫描）。';
+    } else if (!provider || !model) {
+      degraded = true;
+      summary = '未找到可用的模型，本次只执行了规则检查（敏感信息扫描）。';
+    } else {
+      const instructions = [
+        ...chosen.map((preset) => `## ${preset.title}\n${preset.prompt}`),
+        ...(customPrompt ? [`## 用户补充要求\n${customPrompt}`] : []),
+      ].join('\n\n');
+
+      const promptParts = [];
+      if (instructions !== '') promptParts.push(instructions);
+      promptParts.push('## 审查范围');
+      promptParts.push('这是一个项目的完整待发布内容，包含两部分：'
+        + 'git 未提交改动（即将提交）和 npm 包内容（即将发布）。'
+        + '同一条问题只报一次，报告时说明它影响哪一部分。'
+        + '未列出的文件不代表项目缺少文件，只代表本次不涉及。');
+      promptParts.push(`## 文件（${collections.length} 个）`);
+      promptParts.push(collections.map((row) => `- [${row.scope}] ${row.path}`).join('\n'));
+      promptParts.push('## 内容');
+      promptParts.push(collections.map((row) =>
+        `### [${row.scope}] ${row.path}\n\`\`\`\n${row.text}\n\`\`\``).join('\n\n'));
+
+      try {
+        const result = await runModelReview(llm, {
+          provider,
+          model,
+          reasoningEffort: optionalString(body.reasoningEffort),
+          prompt: promptParts.join('\n\n'),
+        });
+        modelFindings = result.findings.map((row) => ({
+          ...normalizeFinding(row),
+          scope: row.scope || (scopes.size > 1 ? 'both' : [...scopes][0] || 'project'),
+        }));
+        summary = result.summary;
+        usage = result.usage;
+      } catch (error) {
+        degraded = true;
+        summary = `模型审查失败（${String(error && error.message ? error.message : error)}），本次只执行了规则检查。`;
+      }
+    }
+
+    const findings = sortFindings([...ruleFindings, ...modelFindings]);
+    if (summary === '') {
+      summary = findings.length === 0 ? '未发现明显问题。' : `共发现 ${findings.length} 处需要关注的问题。`;
+    }
+
+    return {
+      reviewId: `project_${Date.now().toString(36)}`,
+      scope: 'project',
+      model: provider && model ? { provider, model, label: `${provider} / ${model}` } : null,
+      effort: optionalString(body.reasoningEffort) ?? null,
+      files: collections.map((row) => ({ path: row.path, scope: row.scope })),
+      findings,
+      summary,
+      usage,
+      degraded,
+      skipped,
+      pack: packed
+        ? { totalFiles: packed.totalFiles, size: packed.size, unpackedSize: packed.unpackedSize }
+        : null,
+    };
+  }
+
+  /**
+   * `POST /review/run` — review the changes that would be pushed.  /**
    * `POST /review/run` — review the changes that would be pushed.
    *
    * Two passes, ALWAYS in this order and with this failure posture:
@@ -3415,6 +3603,7 @@ function buildRoutes(host) {
     get('/review/pending', async () => ({ data: await host.reviewPending() })),
     post('/review/pending/clear', async ({ body }) => ({ data: await host.reviewPendingClear(body) })),
     post('/review/run', async ({ body }) => ({ data: await host.reviewRun(body) })),
+    post('/review/project', async ({ body }) => ({ data: await host.reviewProject(body) })),
 
     // §3b push targets + per-branch memory
     get('/push/targets', async ({ query }) => ({ data: await host.pushTargets({ path: query('path') }) })),

@@ -408,6 +408,36 @@ window.__ModuleLoader__.load({
       npmReviewSummary: "{n} 个问题（{b} 个阻断）",
       npmReviewResultTitle: "审查结果",
       npmReviewNeedDir: "请先在上方选择一个目录，审查需要读取包内容。",
+      npmReviewRunningTitle: "正在审查",
+      npmReviewStep1: "已读取 npm 将要打包的文件",
+      npmReviewStep2: "规则扫描：敏感信息、空包、README、体积",
+      npmReviewStep3Rules: "正在整理结果",
+      npmReviewStep3Model: "正在调用模型审查（{model}）",
+      npmReviewElapsed: "已用时 {s} 秒",
+      npmReviewWaitHint: "可以直接关掉这个窗口，结果不会丢失。",
+      npmReviewSlowHint: "模型审查通常需要 10–60 秒，取决于包的大小和模型速度。",
+      rvRunningFooter: "审查进行中，请稍候…",
+      pjReviewTitle: "项目审查",
+      pjScope: "审查范围",
+      pjScopeGit: "Git 未提交改动",
+      pjScopeNpm: "npm 包内容",
+      pjNeedDir: "还没有选择目录，审查需要读取项目文件。",
+      pjRun: "开始审查",
+      pjReviewRunning: "正在审查项目",
+      pjStepGit: "收集 git 未提交改动",
+      pjStepNpm: "收集 npm 包内容",
+      pjStepModel: "调用模型审查（{model}）",
+      pjStepRules: "整理规则扫描结果",
+      pjWaitHint: "一次审查覆盖 git 与 npm 两部分，结果按来源标注。可以关掉窗口，结果不会丢失。",
+      pjReviewResult: "审查结果",
+      pjSkipped: "已跳过：",
+      pjChooseHint: "勾选要处理的问题",
+      pjChooseAll: "全选",
+      pjChooseNone: "取消全选",
+      pjChosen: "已选 {n} 项",
+      pjCopyPrompt: "复制修复提示词",
+      pjCopied: "已复制",
+      pjViewResult: "查看结果",
       rvTitle: "推送前审查",
       rvClose: "关闭",
       rvSettings: "设置",
@@ -965,6 +995,36 @@ window.__ModuleLoader__.load({
       npmReviewSummary: "{n} findings ({b} blockers)",
       npmReviewResultTitle: "Review results",
       npmReviewNeedDir: "Choose a folder above first — the review reads the package contents.",
+      npmReviewRunningTitle: "Reviewing",
+      npmReviewStep1: "Read the files npm will pack",
+      npmReviewStep2: "Rule scan: secrets, empty package, README, size",
+      npmReviewStep3Rules: "Collecting results",
+      npmReviewStep3Model: "Asking the model ({model})",
+      npmReviewElapsed: "{s}s elapsed",
+      npmReviewWaitHint: "You can close this dialog — the result is kept.",
+      npmReviewSlowHint: "Model review usually takes 10–60 seconds depending on package size and model speed.",
+      rvRunningFooter: "Review in progress…",
+      pjReviewTitle: "Project review",
+      pjScope: "Scope",
+      pjScopeGit: "Uncommitted Git changes",
+      pjScopeNpm: "npm package contents",
+      pjNeedDir: "No folder selected — the review reads project files.",
+      pjRun: "Start review",
+      pjReviewRunning: "Reviewing the project",
+      pjStepGit: "Collecting uncommitted Git changes",
+      pjStepNpm: "Collecting npm package contents",
+      pjStepModel: "Asking the model ({model})",
+      pjStepRules: "Collecting rule-scan results",
+      pjWaitHint: "One review covers both git and npm; findings are labelled by source. You can close this dialog — the result is kept.",
+      pjReviewResult: "Review results",
+      pjSkipped: "Skipped:",
+      pjChooseHint: "Select findings to act on",
+      pjChooseAll: "Select all",
+      pjChooseNone: "Clear",
+      pjChosen: "{n} selected",
+      pjCopyPrompt: "Copy fix prompt",
+      pjCopied: "Copied",
+      pjViewResult: "View results",
       rvTitle: "Pre-push review",
       rvClose: "Close",
       rvSettings: "Settings",
@@ -2032,7 +2092,47 @@ window.__ModuleLoader__.load({
 .dsh-push-rv-finding-head { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
 .dsh-push-rv-sev { font-size: 11px; font-weight: 600; }
 .dsh-push-rv-sev { font-size: 11px; font-weight: 600; }
-/* 严重度圆点：颜色继承 .dsh-push-rv-sev，父级修饰类决定具体色值。 */
+/* 可点击的结果摘要：整块是按钮，但看起来像信息行。 */
+.dsh-push-npm-reviewsummary { display: flex; flex-direction: column; gap: 4px;
+  width: 100%; text-align: left; cursor: pointer; padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1); }
+.dsh-push-npm-reviewsummary:hover {
+  border-color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-bg-layer-2); }
+
+/* 可勾选的问题卡片：勾选框在左，内容在右。 */
+.dsh-push-rv-finding { display: flex; gap: 8px; align-items: flex-start; }
+.dsh-push-rv-finding.is-picked {
+  outline: 1px solid var(--dsw-alias-brand-primary); }
+.dsh-push-rv-finding-pick { margin: 2px 0 0; flex: none; }
+.dsh-push-rv-finding-body { display: flex; flex-direction: column;
+  gap: 3px; min-width: 0; flex: 1 1 auto; }
+
+/* ── 审查进行中 ─────────────────────────────────────────────────── *//* ── 审查进行中 ─────────────────────────────────────────────────── */
+.dsh-push-npm-reviewrunning { display: flex; flex-direction: column;
+  gap: 8px; padding: 12px 4px; }
+/* 每一步一行：圆点表示状态（已完成/进行中）。 */
+.dsh-push-npm-step { display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.dsh-push-npm-step-dot { width: 7px; height: 7px; border-radius: 50%;
+  flex: none; background: var(--dsw-alias-border-l2); }
+.dsh-push-npm-step-dot.is-done {
+  background: var(--dsw-alias-state-success-primary); }
+/* 进行中的那一步：用主色 + 轻微呼吸，表明它还在动。 */
+.dsh-push-npm-step-dot.is-active {
+  background: var(--dsw-alias-brand-primary);
+  animation: dsh-push-pulse 1.4s ease-in-out infinite; }
+@keyframes dsh-push-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+/* 已用时间：等宽数字，跳动时不抖。 */
+.dsh-push-npm-elapsed { font-size: 12px; font-weight: 600;
+  color: var(--dsw-alias-label-primary);
+  font-variant-numeric: tabular-nums; padding-top: 2px; }
+
+/* 严重度圆点：颜色继承 .dsh-push-rv-sev，父级修饰类决定具体色值。 *//* 严重度圆点：颜色继承 .dsh-push-rv-sev，父级修饰类决定具体色值。 */
 .dsh-push-rv-dot { display: inline-block; width: 6px; height: 6px;
   border-radius: 50%; margin-right: 5px; background: currentColor;
   vertical-align: middle; }
@@ -5637,6 +5737,404 @@ function NpmAccountPicker(props) {
     }, account.login))));
 }
 
+/* ───────────── 统一项目审查（一次覆盖 git + npm） ───────────── */
+
+/**
+ * 把审查结果整理成可复制的提示词。
+ *
+ * 用户原来的做法是手动把问题复制给智能体——这一步应该由界面代劳。
+ *
+ * @param {object[]} findings 选中的问题
+ * @param {string} cwd 项目目录
+ * @returns {string}
+ */
+function buildFixPrompt(findings, cwd) {
+  const lines = [
+    '请修复以下审查发现的问题。',
+    '',
+    '项目目录：' + (cwd || '（未指定）'),
+    '需要修复 ' + findings.length + ' 处：',
+    '',
+  ];
+  for (const [index, finding] of findings.entries()) {
+    lines.push((index + 1) + '. [' + finding.severity + '] ' + finding.title);
+    if (finding.file) lines.push('   文件：' + finding.file);
+    if (finding.line) lines.push('   行号：' + finding.line);
+    if (finding.detail) lines.push('   说明：' + finding.detail);
+    lines.push('');
+  }
+  lines.push('要求：只修改上述问题涉及的地方，不要顺带重构无关代码。');
+  lines.push('修改完成后列出每个文件改了什么。');
+  return lines.join('\n');
+}
+
+/**
+ * 项目级审查：一次跑完，覆盖 git 未提交改动与 npm 包内容。
+ *
+ * 与之前两个独立审查的区别：
+ *   - 内容一次收齐，模型只看一遍，同一问题不会报两遍
+ *   - 每条结果带 scope（git / npm），界面据此分组
+ *   - 结果可多选，能一键复制修复提示词
+ *
+ * @param {{open: boolean, ctx: object, cwd: string, onClose: () => void,
+ *   onReviewed?: (result: object) => void, initialStep?: string}} props
+ */
+function ProjectReviewDialog(props) {
+  const ctx = props.ctx;
+  const [step, setStep] = useState('configure');
+  const [presets, setPresets] = useState({ builtin: [], custom: [], categories: [] });
+  const [models, setModels] = useState({ providers: [], default: null });
+  const [picked, setPicked] = useState({});
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [modelValue, setModelValue] = useState({ provider: '', model: '', reasoningEffort: '' });
+  const [includeGit, setIncludeGit] = useState(true);
+  const [includePack, setIncludePack] = useState(true);
+  const [result, setResult] = useState(props.initialResult || null);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState('');
+  const [elapsedMs, setElapsedMs] = useState(0);
+  /* 结果页里被勾选的问题（用于一键复制修复提示词）。 */
+  const [chosenFindings, setChosenFindings] = useState({});
+  const [copied, setCopied] = useState(false);
+  const aliveRef = useRef(true);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
+
+  /* 打开时若已带结果（用户点了摘要卡片），直接进结果页。 */
+  useEffect(() => {
+    if (!props.open) return;
+    if (props.initialResult) {
+      setResult(props.initialResult);
+      setStep('result');
+    } else if (!result) {
+      setStep(props.initialStep || 'configure');
+    }
+  }, [props.open, props.initialResult, props.initialStep, result]);
+
+  useEffect(() => {
+    if (!props.open) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api(ctx, API + '/review/presets');
+        if (cancelled || !aliveRef.current) return;
+        setPresets({
+          builtin: (data && data.builtin) || [],
+          custom: (data && data.custom) || [],
+          categories: (data && data.categories) || [],
+        });
+      } catch (err) {
+        if (!cancelled && aliveRef.current) setError(err.message);
+      }
+      try {
+        const data = await api(ctx, API + '/review/models');
+        if (cancelled || !aliveRef.current) return;
+        setModels({ providers: (data && data.providers) || [], default: (data && data.default) || null });
+        if (data && data.default) {
+          setModelValue({
+            provider: data.default.provider || '',
+            model: data.default.model || '',
+            reasoningEffort: data.default.reasoningEffort || '',
+          });
+        }
+      } catch { /* 没有模型也能只跑规则扫描 */ }
+    })();
+    return () => { cancelled = true; };
+  }, [ctx, props.open]);
+
+  useEffect(() => {
+    if (!running) return undefined;
+    const startedAt = Date.now();
+    setElapsedMs(0);
+    const timer = setInterval(() => {
+      if (aliveRef.current) setElapsedMs(Date.now() - startedAt);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [running]);
+
+  const togglePreset = (id) => setPicked((prev) => ({ ...prev, [id]: !prev[id] }));
+  const allPresets = [...presets.builtin, ...presets.custom];
+  const selectedIds = Object.keys(picked).filter((id) => picked[id]);
+  const providerList = models.providers || [];
+  const activeProvider = providerList.find((row) => row.id === modelValue.provider);
+  const modelList = (activeProvider && activeProvider.models) || [];
+
+  const run = async () => {
+    setRunning(true);
+    setError('');
+    setResult(null);
+    setChosenFindings({});
+    setStep('running');
+    try {
+      const data = await api(ctx, API + '/review/project', {
+        method: 'POST',
+        body: {
+          path: props.cwd,
+          presetIds: selectedIds,
+          customPrompt: customPrompt.trim(),
+          provider: modelValue.provider,
+          model: modelValue.model,
+          reasoningEffort: modelValue.reasoningEffort || undefined,
+          includeGit,
+          includePack,
+        },
+      });
+      if (!aliveRef.current) return;
+      setResult(data);
+      setStep('result');
+      if (typeof props.onReviewed === 'function') props.onReviewed(data);
+    } catch (err) {
+      if (!aliveRef.current) return;
+      setError(err.message);
+      setStep('configure');
+    } finally {
+      if (aliveRef.current) setRunning(false);
+    }
+  };
+
+  const close = () => {
+    setRunning(false);
+    setError('');
+    props.onClose();
+  };
+
+  if (!props.open) return null;
+
+  /* ---- 配置页 ---- */
+  const configureBody = [
+    h('div', { className: 'dsh-push-rv-head', key: 'head' },
+      h('span', { className: 'dsh-push-rv-title' }, t('pjReviewTitle')),
+      h('span', { className: 'dsh-push-rv-spacer' }),
+      h('button', {
+        type: 'button', className: 'dsh-push-iconbtn',
+        title: t('rvClose'), 'aria-label': t('rvClose'), onClick: close,
+      }, h(Icon, { name: 'close', size: 13 }))),
+
+    h('div', { className: 'dsh-push-rv-sub', key: 'model' },
+      h('span', { className: 'dsh-push-rv-sub-label' }, t('rvModel')),
+      h('select', {
+        className: 'dsh-push-select',
+        value: modelValue.provider,
+        onChange: (e) => setModelValue({ provider: e.target.value, model: '', reasoningEffort: '' }),
+      },
+        h('option', { value: '' }, t('rvNoModel')),
+        providerList.map((row) => h('option', { key: row.id, value: row.id }, row.name || row.id))),
+      h('select', {
+        className: 'dsh-push-select',
+        value: modelValue.model,
+        disabled: modelList.length === 0,
+        onChange: (e) => setModelValue(Object.assign({}, modelValue, { model: e.target.value, reasoningEffort: '' })),
+      },
+        h('option', { value: '' }, '—'),
+        modelList.map((row) => h('option', { key: row.id, value: row.id }, row.name || row.id)))),
+
+    /* 审查范围：这是「统一入口」的核心，一个开关决定覆盖哪些内容。 */
+    h('div', { className: 'dsh-push-rv-sub', key: 'scope' },
+      h('span', { className: 'dsh-push-rv-sub-label' }, t('pjScope')),
+      h('label', { className: 'dsh-push-inline' },
+        h('input', {
+          type: 'checkbox', checked: includeGit,
+          onChange: (e) => setIncludeGit(e.target.checked),
+        }),
+        h('span', { className: 'dsh-push-row-hint' }, t('pjScopeGit'))),
+      h('label', { className: 'dsh-push-inline' },
+        h('input', {
+          type: 'checkbox', checked: includePack,
+          onChange: (e) => setIncludePack(e.target.checked),
+        }),
+        h('span', { className: 'dsh-push-row-hint' }, t('pjScopeNpm')))),
+
+    h('div', { className: 'dsh-push-rv-divider', key: 'd1' }),
+
+    h('div', { className: 'dsh-push-rv-scroll', key: 'presets' },
+      presets.categories.map((category) => {
+        const inCategory = allPresets.filter((preset) => preset.category === category.id);
+        if (inCategory.length === 0) return null;
+        return h('div', { className: 'dsh-push-rv-group', key: category.id },
+          h('div', { className: 'dsh-push-rv-group-head' }, category.label || category.title),
+          h('div', { className: 'dsh-push-rv-cards' }, inCategory.map((preset) => {
+            const on = Boolean(picked[preset.id]);
+            return h('button', {
+              key: preset.id, type: 'button',
+              className: 'dsh-push-rv-card' + (on ? ' is-on' : ''),
+              'aria-pressed': on ? 'true' : 'false',
+              onClick: () => togglePreset(preset.id),
+            },
+              h('span', { className: 'dsh-push-rv-card-check' },
+                on ? h(Icon, { name: 'check', size: 11 }) : null),
+              h('span', { className: 'dsh-push-rv-card-main' },
+                h('span', { className: 'dsh-push-rv-card-title' }, preset.title),
+                h('span', { className: 'dsh-push-rv-card-desc' }, preset.description || '')));
+          })));
+      })),
+
+    h('div', { className: 'dsh-push-rv-divider', key: 'd2' }),
+
+    h('div', { className: 'dsh-push-rv-custom', key: 'custom' },
+      h('div', { className: 'dsh-push-rv-custom-head' }, h('span', null, t('rvCustomPrompt'))),
+      h('textarea', {
+        className: 'dsh-push-rv-textarea',
+        placeholder: t('rvCustomPlaceholder'),
+        value: customPrompt,
+        onChange: (e) => setCustomPrompt(e.target.value),
+      })),
+
+    props.cwd === ''
+      ? h('div', { className: 'dsh-push-error dsh-push-rv-error', key: 'nodir' }, t('pjNeedDir'))
+      : null,
+    error ? h('div', { className: 'dsh-push-error dsh-push-rv-error', key: 'err' }, error) : null,
+  ];
+
+  /* ---- 运行中 ---- */
+  const runningBody = [
+    h('div', { className: 'dsh-push-rv-head', key: 'head' },
+      h('span', { className: 'dsh-push-rv-title' }, t('pjReviewRunning')),
+      h('span', { className: 'dsh-push-rv-spacer' }),
+      h('button', {
+        type: 'button', className: 'dsh-push-iconbtn',
+        title: t('rvClose'), 'aria-label': t('rvClose'), onClick: close,
+      }, h(Icon, { name: 'close', size: 13 }))),
+    h('div', { className: 'dsh-push-rv-scroll', key: 'body' },
+      h('div', { className: 'dsh-push-npm-reviewrunning' },
+        h('div', { className: 'dsh-push-npm-step' },
+          h('span', { className: 'dsh-push-npm-step-dot' + (includeGit ? ' is-done' : '') }),
+          h('span', null, t('pjStepGit'))),
+        h('div', { className: 'dsh-push-npm-step' },
+          h('span', { className: 'dsh-push-npm-step-dot' + (includePack ? ' is-done' : '') }),
+          h('span', null, t('pjStepNpm'))),
+        h('div', { className: 'dsh-push-npm-step' },
+          h('span', { className: 'dsh-push-npm-step-dot is-active' }),
+          h('span', null, modelValue.model
+            ? t('pjStepModel', { model: modelValue.model })
+            : t('pjStepRules'))),
+        h('div', { className: 'dsh-push-npm-elapsed' },
+          t('npmReviewElapsed', { s: Math.floor(elapsedMs / 1000) })),
+        h('div', { className: 'dsh-push-hint' }, t('pjWaitHint')))),
+  ];
+
+  /* ---- 结果页：可多选 + 一键复制修复提示词 ---- */
+  const findings = (result && result.findings) || [];
+  const chosenList = findings.filter((row, index) => chosenFindings[index]);
+  const toggleFinding = (index) => setChosenFindings((prev) => ({ ...prev, [index]: !prev[index] }));
+  const allChosen = findings.length > 0 && chosenList.length === findings.length;
+
+  const copyFix = async () => {
+    const target = chosenList.length > 0 ? chosenList : findings;
+    const ok = await copyText(buildFixPrompt(target, props.cwd));
+    if (aliveRef.current) {
+      setCopied(ok);
+      setTimeout(() => { if (aliveRef.current) setCopied(false); }, 2000);
+    }
+  };
+
+  const findingCard = (finding, index) => h('label', {
+    key: index,
+    className: 'dsh-push-rv-finding ' + (SEVERITY_TONE[finding.severity] || '')
+      + (chosenFindings[index] ? ' is-picked' : ''),
+  },
+    h('input', {
+      type: 'checkbox',
+      className: 'dsh-push-rv-finding-pick',
+      checked: Boolean(chosenFindings[index]),
+      onChange: () => toggleFinding(index),
+    }),
+    h('span', { className: 'dsh-push-rv-finding-body' },
+      h('span', { className: 'dsh-push-rv-finding-head' },
+        h('span', { className: 'dsh-push-rv-sev' },
+          h('span', { className: 'dsh-push-rv-dot' }),
+          t(SEVERITY_LABEL[finding.severity] || 'rvSeverityInfo')),
+        finding.scope
+          ? h('span', { className: 'dsh-push-pill dsh-push-pill--idle' }, finding.scope)
+          : null,
+        h('span', { className: 'dsh-push-rv-finding-title' }, finding.title)),
+      finding.detail ? h('span', { className: 'dsh-push-rv-finding-detail' }, finding.detail) : null,
+      finding.file ? h('span', { className: 'dsh-push-rv-finding-file' }, finding.file) : null));
+
+  const resultBody = [
+    h('div', { className: 'dsh-push-rv-head', key: 'head' },
+      h('span', { className: 'dsh-push-rv-title' }, t('pjReviewResult')),
+      h('span', { className: 'dsh-push-rv-spacer' }),
+      h('button', {
+        type: 'button', className: 'dsh-push-iconbtn',
+        title: t('rvClose'), 'aria-label': t('rvClose'), onClick: close,
+      }, h(Icon, { name: 'close', size: 13 }))),
+
+    h('div', { className: 'dsh-push-rv-summary', key: 'summary' }, (result && result.summary) || ''),
+
+    result && result.degraded
+      ? h('div', { className: 'dsh-push-rv-muted', key: 'degraded' }, t('rvDegraded'))
+      : null,
+
+    result && (result.skipped || []).length > 0
+      ? h('div', { className: 'dsh-push-rv-muted', key: 'skipped' },
+        t('pjSkipped') + ' ' + result.skipped.map((row) => row.scope + '：' + row.reason).join('；'))
+      : null,
+
+    h('div', { className: 'dsh-push-rv-scroll', key: 'findings' },
+      findings.length === 0
+        ? h('div', { className: 'dsh-push-ok' }, t('rvNoFindings'))
+        : h('div', { className: 'dsh-push-rv-findings' }, findings.map(findingCard))),
+  ];
+
+  /* ---- footer ---- */
+  const configureFooter = [
+    h('span', { className: 'dsh-push-rv-muted', key: 'count' },
+      selectedIds.length > 0 ? t('rvSelected', { n: selectedIds.length }) : t('rvSelectionEmpty')),
+    h('span', { className: 'dsh-push-rv-spacer', key: 'spacer' }),
+    h(Btn, { key: 'cancel', onClick: close }, t('rvCancel')),
+    h(Btn, {
+      key: 'run', kind: 'primary',
+      disabled: running || props.cwd === '',
+      onClick: run,
+    }, t('pjRun')),
+  ];
+
+  const runningFooter = [
+    h('span', { className: 'dsh-push-rv-muted', key: 'busy' }, t('rvRunningFooter')),
+    h('span', { className: 'dsh-push-rv-spacer', key: 'spacer' }),
+    h(Btn, { key: 'cancel', onClick: close }, t('rvCancel')),
+  ];
+
+  const resultFooter = [
+    h('span', { className: 'dsh-push-rv-muted', key: 'count' },
+      chosenList.length > 0
+        ? t('pjChosen', { n: chosenList.length })
+        : t('pjChooseHint')),
+    /* 全选/取消全选：问题多时不用一个个点。 */
+    findings.length > 1
+      ? h(Btn, {
+        key: 'all',
+        mini: true,
+        onClick: () => {
+          const next = {};
+          if (!allChosen) findings.forEach((row, index) => { next[index] = true; });
+          setChosenFindings(next);
+        },
+      }, allChosen ? t('pjChooseNone') : t('pjChooseAll'))
+      : null,
+    h(Btn, {
+      key: 'copy',
+      mini: true,
+      disabled: findings.length === 0,
+      onClick: copyFix,
+    }, copied ? t('pjCopied') : t('pjCopyPrompt')),
+    h('span', { className: 'dsh-push-rv-spacer', key: 'spacer' }),
+    h(Btn, { key: 'again', onClick: () => { setResult(null); setStep('configure'); } }, t('rvRunAgain')),
+    h(Btn, { key: 'done', kind: 'primary', onClick: close }, t('rvDone')),
+  ];
+
+  return h(Modal, {
+    open: props.open,
+    bare: true,
+    wide: true,
+    onClose: close,
+    footer: step === 'result' ? resultFooter : (step === 'running' ? runningFooter : configureFooter),
+  }, step === 'running' ? runningBody : (step === 'result' ? resultBody : configureBody));
+}
+
 /* ───────────── npm 发布前审查（复用 GitHub 那套选择方式） ───────────── */
 
 /**
@@ -5662,6 +6160,20 @@ function NpmReviewDialog(props) {
   const [modelValue, setModelValue] = useState({ provider: '', model: '', reasoningEffort: '' });
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
+  // 已用时间：让「还在跑」和「卡死了」可以区分。
+  const [elapsedMs, setElapsedMs] = useState(0);
+  /* 运行期间每秒刷新已用时间。清理函数确保关闭后不再计时。
+   * 这个计时器是「让人理解在等什么」的关键：
+   * 没有它，界面停在同一个画面，用户无法区分「还在跑」与「卡死了」。 */
+  useEffect(() => {
+    if (!running) return undefined;
+    const startedAt = Date.now();
+    setElapsedMs(0);
+    const timer = setInterval(() => {
+      if (aliveRef.current) setElapsedMs(Date.now() - startedAt);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [running]);
   const [error, setError] = useState('');
   const aliveRef = useRef(true);
 
@@ -5834,13 +6346,15 @@ function NpmReviewDialog(props) {
         ? t('rvSelected', { n: selectedIds.length })
         : t('rvSelectionEmpty')),
     h('span', { className: 'dsh-push-rv-spacer', key: 'spacer' }),
+    h('span', { className: 'dsh-push-rv-muted', key: 'busyhint' },
+      running ? t('rvRunningFooter') : ''),
     h(Btn, { key: 'cancel', onClick: props.onClose }, t('rvCancel')),
     h(Btn, {
       key: 'run',
       kind: 'primary',
       disabled: running || props.cwd === '',
       onClick: run,
-    }, running ? t('loading') : t('rvRun')),
+    }, running ? t('rvRunning') : t('rvRun')),
   ];
 
   /* ---- 结果页 ---- */
@@ -5899,6 +6413,46 @@ function NpmReviewDialog(props) {
     h(Btn, { key: 'done', kind: 'primary', onClick: () => { reset(); props.onClose(); } }, t('rvDone')),
   ];
 
+  /* ---- 运行中：说明正在做什么，并显示已用时间 ---- */
+  const runningBody = [
+    h('div', { className: 'dsh-push-rv-head', key: 'head' },
+      h('span', { className: 'dsh-push-rv-title' }, t('npmReviewRunningTitle')),
+      h('span', { className: 'dsh-push-rv-spacer' }),
+      h('button', {
+        type: 'button',
+        className: 'dsh-push-iconbtn',
+        title: t('rvClose'),
+        'aria-label': t('rvClose'),
+        onClick: props.onClose,
+      }, h(Icon, { name: 'close', size: 13 }))),
+
+    h('div', { className: 'dsh-push-rv-scroll', key: 'body' },
+      h('div', { className: 'dsh-push-npm-reviewrunning' },
+        /* 三步说明：用户能对上「现在到哪一步了」。 */
+        h('div', { className: 'dsh-push-npm-step' },
+          h('span', { className: 'dsh-push-npm-step-dot is-done' }),
+          h('span', null, t('npmReviewStep1'))),
+        h('div', { className: 'dsh-push-npm-step' },
+          h('span', { className: 'dsh-push-npm-step-dot is-done' }),
+          h('span', null, t('npmReviewStep2'))),
+        h('div', { className: 'dsh-push-npm-step' },
+          h('span', { className: 'dsh-push-npm-step-dot is-active' }),
+          h('span', null,
+            modelValue.model
+              ? t('npmReviewStep3Model', { model: modelValue.model })
+              : t('npmReviewStep3Rules'))),
+
+        h('div', { className: 'dsh-push-npm-elapsed' },
+          t('npmReviewElapsed', { s: Math.floor(elapsedMs / 1000) })),
+
+        h('div', { className: 'dsh-push-hint' }, t('npmReviewWaitHint')),
+
+        /* 没有模型时会很快，有模型则可能需要几十秒。 */
+        modelValue.model
+          ? h('div', { className: 'dsh-push-row-hint' }, t('npmReviewSlowHint'))
+          : null)),
+  ];
+
   return h(Modal, {
     open: props.open,
     // bare：对话框自己渲染头部（标题 + 关闭），避免出现两条标题栏。
@@ -5906,7 +6460,8 @@ function NpmReviewDialog(props) {
     wide: true,
     onClose: () => { reset(); props.onClose(); },
     footer: step === 'result' ? resultFooter : configureFooter,
-  }, step === 'result' ? resultBody : configureBody);
+  }, step === 'running' ? runningBody
+    : (step === 'result' ? resultBody : configureBody));
 }
 /* ───────────── npm 包卡片 + 管理弹窗（对齐 GitHub 的列表/卡片） ───────────── */
 
@@ -6215,11 +6770,18 @@ function NpmPackageModal(props) {
       h(Btn, { mini: true, disabled: busy || !cwd, onClick: () => setReviewOpen(true) },
         t('npmReviewOpen'))),
 
+    /* 摘要可点击：直接看结果，不必重新跑一次审查。 */
     reviewDone
-      ? h('div', { className: 'dsh-push-npm-facts' },
-        packageFact(t('npmReviewFindings'), String((reviewDone.findings || []).length)),
-        packageFact(t('npmReviewBlockerCount'), String((reviewDone.findings || [])
-          .filter((row) => row.severity === 'blocker').length)))
+      ? h('button', {
+        type: 'button',
+        className: 'dsh-push-npm-reviewsummary',
+        onClick: () => setReviewOpen(true),
+      },
+        h('div', { className: 'dsh-push-npm-facts' },
+          packageFact(t('npmReviewFindings'), String((reviewDone.findings || []).length)),
+          packageFact(t('npmReviewBlockerCount'), String((reviewDone.findings || [])
+            .filter((row) => row.severity === 'blocker').length))),
+        h('span', { className: 'dsh-push-row-hint' }, t('pjViewResult')))
       : null,
 
     /* 发布是不可逆写操作：走两步确认，和删除仓库那个模式一致。 */
@@ -6269,10 +6831,12 @@ function NpmPackageModal(props) {
     h('div', { className: 'dsh-push-modal-body' },
       error && tab !== 'publish' ? h('div', { className: 'dsh-push-error' }, error) : null,
       page),
-    h(NpmReviewDialog, {
+    h(ProjectReviewDialog, {
       open: reviewOpen,
       ctx,
       cwd,
+      // 已有结果时直接进结果页：摘要是「看结果」，不是「再跑一次」。
+      initialResult: reviewDone,
       onClose: () => setReviewOpen(false),
       onReviewed: (data) => setReviewDone(data),
     }));
@@ -6644,7 +7208,7 @@ function NpmSearchPanel(props) {
       onClose: () => setManagePkg(null),
       onChanged: () => { if (term === '') loadMine(); else search(term); },
     }),
-    h(NpmReviewDialog, {
+    h(ProjectReviewDialog, {
       open: reviewOpen,
       ctx,
       cwd: dirState.dir,
@@ -6924,7 +7488,7 @@ function NpmProjectPanel(props) {
           h('span', null, t('npmReviewTitle')),
           h(Btn, { mini: true, onClick: () => setReviewOpen(true) }, t('npmReviewOpen'))),
         h('div', { className: 'dsh-push-row-hint' }, t('npmReviewHint'))),
-      h(NpmReviewDialog, {
+      h(ProjectReviewDialog, {
         open: reviewOpen,
         ctx,
         cwd,
@@ -7002,10 +7566,12 @@ function NpmProjectPanel(props) {
 
     h(NpmPackPanel, { ctx, cwd }),
     h(NpmDepsSection, { ctx, cwd }),
-    h(NpmReviewDialog, {
+    h(ProjectReviewDialog, {
       open: reviewOpen,
       ctx,
       cwd,
+      // 已有结果时直接进结果页：摘要是「看结果」，不是「再跑一次」。
+      initialResult: reviewDone,
       onClose: () => setReviewOpen(false),
       onReviewed: (data) => setReviewDone(data),
     }));
@@ -7118,7 +7684,7 @@ function NpmSection(props) {
       onClose: () => setManagePkg(null),
       onChanged: loadPackages,
     }),
-    h(NpmReviewDialog, {
+    h(ProjectReviewDialog, {
       open: reviewOpen,
       ctx,
       cwd: dirState.dir,
@@ -8615,7 +9181,10 @@ function ReviewDialog(props) {
     setResult(null);
     setStep('running');
     try {
-      const data = await api(ctx, API + '/review/run', {
+      /* 与 npm 的发布前审查共用同一套后端：/review/project 一次覆盖
+     * git 改动与包内容，避免两份审查逻辑各自演化。GitHub 面板只要
+     * git 那部分，所以关掉 includePack。 */
+    const data = await api(ctx, API + '/review/project', {
         method: 'POST',
         body: {
           path: props.path,
@@ -8624,7 +9193,9 @@ function ReviewDialog(props) {
           provider: modelValue.provider,
           model: modelValue.model,
           reasoningEffort: modelValue.reasoningEffort || undefined,
-          staged: stagedOnly,
+          includeGit: true,
+          // GitHub 面板只关心即将提交的改动，不重复审 npm 包内容。
+          includePack: false,
           maxFiles,
         },
       });

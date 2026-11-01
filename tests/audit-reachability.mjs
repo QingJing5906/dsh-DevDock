@@ -20,7 +20,14 @@
 import { readFileSync } from 'node:fs';
 
 /** Routes that are deliberately not consumer-facing. */
-const ALLOWED_HOST_ONLY = new Set(['/push/memory', '/tools', '/diagnostics']);
+const ALLOWED_HOST_ONLY = new Set([
+  '/push/memory',
+  '/tools',
+  '/diagnostics',
+  // /review/run 保留给仍是旧版的 agent 工具调用路径；
+  // 界面已统一走 /review/project（一次覆盖 git + npm）。
+  '/review/run',
+]);
 
 const client = readFileSync('client.js', 'utf8');
 const host = readFileSync('src/host/index.js', 'utf8');

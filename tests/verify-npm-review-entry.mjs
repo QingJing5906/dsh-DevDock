@@ -28,7 +28,7 @@ function componentBody(name) {
   for (const name of panels) {
     const body = componentBody(name);
     check(name + ' 存在', body !== '');
-    check(name + ' 挂了 NpmReviewDialog', body.includes('h(NpmReviewDialog, {'));
+    check(name + ' 挂了 ProjectReviewDialog', body.includes('h(ProjectReviewDialog, {'));
     check(name + ' 有 reviewOpen 状态', body.includes('reviewOpen'));
   }
 }
@@ -117,7 +117,7 @@ function componentBody(name) {
   const idx = body.indexOf("if (cwd === '') {");
   const branch = idx >= 0 ? body.slice(idx, idx + 1600) : '';
   check('空目录分支里有目录条', branch.includes('NpmDirBar'));
-  check('空目录分支里有审查入口', branch.includes('NpmReviewDialog'));
+  check('空目录分支里有审查入口', branch.includes('ProjectReviewDialog'));
 }
 
 let failed = 0;
