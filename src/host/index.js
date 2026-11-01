@@ -2658,7 +2658,6 @@ export class GithubLinkHost extends ServiceClass {
   }
 
   /**
-   * `POST /npm/publish` — 发布到 npm。  /**
    * `POST /npm/publish` — 发布到 npm。
    *
    * 需要 2FA 的账号必须带 otp；没有 otp 时 npm 的报错会被原样翻译成一句
@@ -2677,9 +2676,22 @@ export class GithubLinkHost extends ServiceClass {
       : process.cwd();
 
     const args = ['publish', '--json'];
-    if (typeof body.tag === 'string' && body.tag.trim() !== '') args.push('--tag', body.tag.trim());
+    // 防御性校验：--tag 是 dist-tag 名，只允许 npm 认可的字符；
+    // --otp 是 6-8 位数字。任何越界字符直接拒绝，不进入子进程 argv。
+    const tag = typeof body.tag === 'string' ? body.tag.trim() : '';
+    if (tag !== '') {
+      if (!/^[a-zA-Z0-9._@-]+$/.test(tag) || tag.length > 64) {
+        throw httpError(400, 'BAD_REQUEST', '发布标签（tag）含非法字符，只能是字母、数字、点、下划线、连字符。');
+      }
+      args.push('--tag', tag);
+    }
     const otp = typeof body.otp === 'string' ? body.otp.trim() : '';
-    if (otp !== '') args.push('--otp', otp);
+    if (otp !== '') {
+      if (!/^\d{6,8}$/.test(otp)) {
+        throw httpError(400, 'BAD_REQUEST', '验证码（otp）必须是 6 到 8 位数字。');
+      }
+      args.push('--otp', otp);
+    }
 
     const runner = this.#npmRunner();
     try {
@@ -2703,7 +2715,6 @@ export class GithubLinkHost extends ServiceClass {
   }
 
   /**
-   * `GET /npm/search` — 按关键词搜索 npm 上的包。  /**
    * `GET /npm/search` — 按关键词搜索 npm 上的包。
    *
    * 公开数据，不要求登录；有账号时带上令牌，私有包才搜得到。

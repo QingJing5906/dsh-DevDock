@@ -116,19 +116,31 @@ export class NpmRunner {
       cwd: options.cwd ?? process.cwd(),
       env: { ...process.env, ...(options.env ?? {}) },
       windowsHide: true,
-      // Windows 上 npm 是 .cmd，必须经 shell 才能执行。
-      shell: process.platform === 'win32',
+      // 不用 shell: true —— 那会让参数（如 --otp、--tag）经过 cmd 的
+      // 元字符解析，请求体里的值就可能注入命令。改用显式 cmd.exe，参数
+      // 作为 argv 单独传入，由 spawn 逐项转义，不经过 shell 解析。
       stdio,
     };
+  }
+
+  /** 把「npm 可执行文件 + 参数」折成 spawn 的 command + args。
+   *  Windows 上 npm 是 .cmd，必须经 cmd.exe 执行；这里用 /d /s /c 显式
+   *  包装，参数仍是独立 argv 项，避免 shell 元字符注入。 */
+  #commandAndArgs(args) {
+    if (process.platform === 'win32') {
+      return { command: 'cmd.exe', args: ['/d', '/s', '/c', this.#binary, ...args] };
+    }
+    return { command: this.#binary, args };
   }
 
   /** 正常路径：管道捕获。 */
   #runPiped(args, options) {
     const timeoutMs = options.timeoutMs ?? this.#timeoutMs;
+    const { command, args: argv } = this.#commandAndArgs(args);
     return new Promise((resolve, reject) => {
       let child;
       try {
-        child = spawn(this.#binary, args, this.#spawnOptions(options, ['ignore', 'pipe', 'pipe']));
+        child = spawn(command, argv, this.#spawnOptions(options, ['ignore', 'pipe', 'pipe']));
       } catch (error) {
         reject(new NpmError('FAILED', `无法启动 npm：${error.message}`));
         return;
@@ -178,10 +190,11 @@ export class NpmRunner {
     }
 
     try {
+      const { command, args: argv } = this.#commandAndArgs(args);
       const code = await new Promise((resolvePromise, reject) => {
         let child;
         try {
-          child = spawn(this.#binary, args, this.#spawnOptions(options, ['ignore', outFd, errFd]));
+          child = spawn(command, argv, this.#spawnOptions(options, ['ignore', outFd, errFd]));
         } catch (error) {
           reject(new NpmError('FAILED', `无法启动 npm：${error.message}`));
           return;

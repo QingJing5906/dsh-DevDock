@@ -1,0 +1,20 @@
+fix(security): 命令注入 + 合并残留
+
+统一审查（/review/project）端到端跑通后，模型报告了一个 high 级安全漏洞：
+
+1. 命令注入（high）
+   NpmRunner 在 Windows 上用了 spawn 的 shell:true，而 --tag/--otp 来自
+   请求体，攻击者可用 shell 元字符注入命令。
+   修复分两层：
+   - spawn 层：去掉 shell:true，改用显式 cmd.exe /d /s /c 包装 .cmd，
+     参数作为独立 argv 传入，由 spawn 逐项转义，不经过 shell 解析。
+   - 应用层：npmPublish 对 --tag（仅字母数字 . _ @ -，<=64 字符）与
+     --otp（6-8 位数字）做白名单校验，越界字符直接 400，不进 argv。
+
+2. 合并残留（low）
+   多轮脚本补丁叠加，npmPublish / npmSearch 的 JSDoc 各自重复一遍。
+   已清理，并加了「相邻两行都是 /**」的检查。
+
+新增 verify-injection.mjs：真实调用 npm publish --tag "x&echo pwned"，
+验证注入字符未被 shell 执行（pwned 只出现在 npm 的报错回显里，而非
+独立命令输出），同时回归 npm pack 仍正常。
