@@ -99,13 +99,18 @@ export class NpmRunner {
     }
 
     if (result.code !== 0 && !options.allowFailure) {
-      const firstLine = (result.stderr || result.stdout || '')
+      // npm 把 warning 打在 stderr 前几行，真正的 error（如 403 的 body）
+      // 在更后面。这里取「首个 error 行 + 末尾若干行」，而不是机械地取
+      // 前 3 行——那样只能看到 repository.url 规范化之类的 warning，把
+      // 真正的 403 / EOTP 原因漏掉。
+      const lines = (result.stderr || result.stdout || '')
         .split('\n')
         .map((line) => line.trim())
-        .filter(Boolean)
-        .slice(0, 3)
-        .join(' / ');
-      throw new NpmError('FAILED', `npm 执行失败（退出码 ${result.code}）：${firstLine}`, result);
+        .filter(Boolean);
+      const firstError = lines.find((line) => /npm error|error code|EOTP|E403|E401|E402|E404/i.test(line));
+      const tail = lines.slice(-6).join(' / ');
+      const message = [firstError, tail].filter(Boolean).join(' | ');
+      throw new NpmError('FAILED', `npm 执行失败（退出码 ${result.code}）：${message}`, result);
     }
     return result;
   }

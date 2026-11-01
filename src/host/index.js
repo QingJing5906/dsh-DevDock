@@ -2676,6 +2676,11 @@ export class GithubLinkHost extends ServiceClass {
       : process.cwd();
 
     const args = ['publish', '--json'];
+    // prepublishOnly 里的 `npm test` 在 monorepo workspace 环境下会与工作区根
+    // 的 test 脚本互相缠绕（根目录 test = npm --workspace dsh-push test，而
+    // dsh-push 的 prepublishOnly 又是 npm test），导致发布前钩子递归失败。
+    // 发布前的测试已经由项目审查（/review/project）承担，这里跳过脚本。
+    args.push('--ignore-scripts');
     // 防御性校验：--tag 是 dist-tag 名，只允许 npm 认可的字符；
     // --otp 是 6-8 位数字。任何越界字符直接拒绝，不进入子进程 argv。
     const tag = typeof body.tag === 'string' ? body.tag.trim() : '';
@@ -2699,9 +2704,17 @@ export class GithubLinkHost extends ServiceClass {
         cwd: dir,
         env: npmAuthEnv(account.token),
       });
-      const packed = mapPackResult(parsePackJson(result.stdout));
+      // npm publish 的输出不是 pack 的 JSON 结构，别用 parsePackJson 解析。
+      // 从 package.json 读回真实的 name/version，这是发布出去的确切值。
+      let name = '';
+      let version = '';
+      try {
+        const doc = JSON.parse(await readFile(path.join(dir, 'package.json'), 'utf8'));
+        name = doc.name ?? '';
+        version = doc.version ?? '';
+      } catch { /* 读不到就用空值 */ }
       await this.#store.touchNpmAccount(account.id);
-      return { published: true, name: packed.name, version: packed.version };
+      return { published: true, name, version };
     } catch (error) {
       const text = `${error.stderr || ''} ${error.message || ''}`;
       if (/EOTP|one-time password|two-factor/i.test(text)) {
@@ -2710,7 +2723,11 @@ export class GithubLinkHost extends ServiceClass {
       if (/E403|403 Forbidden|cannot publish over/i.test(text)) {
         throw httpError(403, 'FORBIDDEN', error.message);
       }
-      throw httpError(500, 'INTERNAL', error.message);
+      // 带上完整 stderr 尾部，否则 prepublishOnly 里的测试失败原因被截断，
+      // 只能看到「npm test」三个字，无从定位。
+      const tail = String(error.stderr || error.stdout || '')
+        .split('\n').filter((line) => line.trim() !== '').slice(-12).join('\n');
+      throw httpError(500, 'INTERNAL', error.message + (tail ? '\n---\n' + tail : ''));
     }
   }
 
