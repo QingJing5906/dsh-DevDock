@@ -2,7 +2,7 @@ window.__ModuleLoader__.load({
   // Must equal package.json `name`: the loader keys client modules by package
   // name, so a mismatch registers the module under an id nobody resolves and
   // every surface vanishes while the Host half still reports active.
-  id: 'dsh-harness-push',
+  id: 'dsh-devdock',
   factory: (require) => {
     'use strict';
     /**
@@ -313,7 +313,7 @@ window.__ModuleLoader__.load({
       density_medium: "中",
       density_large: "大",
       npmSection: "npm",
-      npmReadOnly: "只读：查看账号与包",
+      npmReadOnly: "账号与包",
       npmTokenPlaceholder: "粘贴 npm Granular Access Token",
       npmAdd: "添加账号",
       npmCurrent: "当前",
@@ -391,6 +391,23 @@ window.__ModuleLoader__.load({
       npmPublishNeedWorkspace: "需要先选择一个工作区目录才能发布。",
       npmPublishVersionNote: "将发布的版本：{version}（取自 package.json）",
       npmPublishConfirm: "确认发布",
+      headerPickDir: "选择目录",
+      headerNeedDirTitle: "先选一个目录",
+      headerNeedDirText: "DevDock 要管理这个目录里的 Git 仓库和 npm 项目，所以需要一个工作目录。选过之后会记住。",
+      headerPickDirBig: "选择目录",
+      headerClearDir: "清除",
+      npmReviewTitle: "发布前审查",
+      npmReviewHint: "先检查即将发布的包内容，再决定是否发布。规则扫描（敏感信息）始终执行，模型审查可选。",
+      npmReviewOpen: "发布前审查",
+      npmReviewFindings: "问题",
+      npmReviewBlockerCount: "阻断项",
+      npmReviewBlocker: "存在阻断级问题。仍可发布，但请确认这些内容确实要公开。",
+      npmNoDirYet: "还没有选择目录",
+      npmChangeDir: "换目录",
+      npmReviewHintShort: "发布前先检查包内容",
+      npmReviewSummary: "{n} 个问题（{b} 个阻断）",
+      npmReviewResultTitle: "审查结果",
+      npmReviewNeedDir: "请先在上方选择一个目录，审查需要读取包内容。",
       rvTitle: "推送前审查",
       rvClose: "关闭",
       rvSettings: "设置",
@@ -853,7 +870,7 @@ window.__ModuleLoader__.load({
       density_medium: "Medium",
       density_large: "Large",
       npmSection: "npm",
-      npmReadOnly: "Read-only: accounts and packages",
+      npmReadOnly: "Accounts and packages",
       npmTokenPlaceholder: "Paste an npm Granular Access Token",
       npmAdd: "Add account",
       npmCurrent: "Current",
@@ -931,6 +948,23 @@ window.__ModuleLoader__.load({
       npmPublishNeedWorkspace: "Select a workspace directory before publishing.",
       npmPublishVersionNote: "Version to publish: {version} (from package.json)",
       npmPublishConfirm: "Confirm publish",
+      headerPickDir: "Choose folder",
+      headerNeedDirTitle: "Choose a folder first",
+      headerNeedDirText: "DevDock works with the Git repositories and npm projects inside a folder. Your choice is remembered.",
+      headerPickDirBig: "Choose folder",
+      headerClearDir: "Clear",
+      npmReviewTitle: "Pre-publish review",
+      npmReviewHint: "Review what will be published before it goes out. Secret scanning always runs; model review is optional.",
+      npmReviewOpen: "Pre-publish review",
+      npmReviewFindings: "Findings",
+      npmReviewBlockerCount: "Blockers",
+      npmReviewBlocker: "Blocking issues found. You can still publish, but make sure this content is meant to be public.",
+      npmNoDirYet: "No folder selected",
+      npmChangeDir: "Change",
+      npmReviewHintShort: "Check the package before publishing",
+      npmReviewSummary: "{n} findings ({b} blockers)",
+      npmReviewResultTitle: "Review results",
+      npmReviewNeedDir: "Choose a folder above first — the review reads the package contents.",
       rvTitle: "Pre-push review",
       rvClose: "Close",
       rvSettings: "Settings",
@@ -1487,22 +1521,34 @@ window.__ModuleLoader__.load({
   padding: 32px 24px;
   background: color-mix(in srgb, var(--dsw-alias-label-primary) 28%, transparent); }
 .dsh-push-modal { display: flex; flex-direction: column; width: 100%; max-width: 520px;
-  max-height: calc(100vh - 64px); color: var(--dsw-alias-label-primary);
+  max-height: calc(100vh - 64px);
+  color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-overlay); border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 10px;
   box-shadow: 0 12px 32px color-mix(in srgb, var(--dsw-alias-label-primary) 22%, transparent); }
 .dsh-push-modal-head { display: flex; align-items: center; gap: 8px;
-  padding: 12px 14px; border-bottom: 1px solid var(--dsw-alias-border-l1); }
+  padding: 12px 14px; border-bottom: 1px solid var(--dsw-alias-border-l1);
+  flex: none; }
 .dsh-push-modal-title { font-size: 13px; font-weight: 600; }
 .dsh-push-modal-head .dsh-push-iconbtn { margin-left: auto; }
-.dsh-push-modal-body { padding: 4px 14px 12px; overflow: auto; }
+/* 内容区必须自己伸缩：flex:1 + min-height:0 才能让它真的滚动，
+ * 而不是把子元素压扁或裁掉（min-height 默认是 auto，会拒绝收缩）。 */
+.dsh-push-modal-body { flex: 1 1 auto; min-height: 0;
+  /* 必须是 flex 容器：内容里的引导区/面板要靠它分配高度，
+   * 否则 flex:1 写在子元素上没有任何作用。 */
+  display: flex; flex-direction: column;
+  padding: 4px 14px 12px; overflow: auto; }
 .dsh-push-modal--bare .dsh-push-modal-body { display: flex; flex-direction: column;
   padding: 0; overflow: hidden; flex: 1 1 auto; min-height: 0; }
 .dsh-push-modal--bare .dsh-push-modal-foot { flex: none; }
 .dsh-push-modal-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px;
-  padding: 10px 14px; border-top: 1px solid var(--dsw-alias-border-l1); }
+  padding: 10px 14px; border-top: 1px solid var(--dsw-alias-border-l1);
+  flex: none; }
 .dsh-push-modal-status { margin-right: auto; min-width: 0; font-size: 12px; }
 .dsh-push-modal--wide { max-width: 760px; }
+/* 需要占满可用高度时用这个（顶部入口把整页内容塞进弹窗）。
+ * 普通弹窗保持自然高度，内容短的时候不会空一大片。 */
+.dsh-push-modal--fill { height: calc(100vh - 64px); }
 /* Second head slot (the management dialog puts repository identity here). */
 .dsh-push-modal-subhead { display: flex; flex-direction: column; gap: 1px;
   flex: 1 1 auto; min-width: 0; padding: 0 8px; }
@@ -1724,16 +1770,33 @@ window.__ModuleLoader__.load({
 .dsh-push-sb-icon { display: inline-flex; align-items: center; justify-content: center; color: currentColor; }
 
 /* ── main page ───────────────────────────────────────────────────────── */
+/* 水平内边距：默认给宽面板用；侧栏那种窄容器在下面覆盖成更舒展的值。 */
+.dsh-push-root { --dsh-push-pad-x: 16px; }
+/* 左侧栏面板：260px 上下，16px 只占 6%，显得贴边；18px 明显舒展 */
+ 且行内的元素本身还有 2px 内缩，两者叠加正好。 */
+.dsh-push-page.dsh-push-page--panel { --dsh-push-pad-x: 18px; }
+/* 窄面板里的行再退一点：这些行原本左右内缩是 0~2px，
+ * 直接顶着容器边缘，看起来就像「文字贴边」。 */
+.dsh-push-page--panel .dsh-push-row { padding-left: 2px; padding-right: 2px; }
+.dsh-push-page--panel .dsh-push-repo-head { padding-left: 4px; padding-right: 4px; }
+.dsh-push-page--panel .dsh-push-group-head { padding-left: 2px; padding-right: 2px; }
+.dsh-push-page--panel .dsh-push-npm-searchmeta { padding-left: 2px; padding-right: 2px; }
+.dsh-push-page--panel .dsh-push-npm-browse-desc { padding-left: 2px; padding-right: 2px; }
+/* 卡片之间的呼吸：窄面板里两列卡片容易挤在一起 */
+.dsh-push-page--panel .dsh-push-repocards { gap: 12px; }
+/* 分组的上下留白，避免两条分组黏成一块 */
+.dsh-push-page--panel .dsh-push-group + .dsh-push-group { margin-top: 10px; }
 .dsh-push-page { display: flex; flex-direction: column; height: 100%; min-height: 0;
   font-size: 13px; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-base); }
-.dsh-push-page-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+.dsh-push-page-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 11px var(--dsh-push-pad-x);
   border-bottom: 1px solid var(--dsw-alias-border-l1); }
 .dsh-push-page-title { font-size: 14px; font-weight: 600; }
 .dsh-push-page-spacer { flex: 1 1 auto; }
-.dsh-push-page-toolbar { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+.dsh-push-page-toolbar { flex: none; display: flex; align-items: center; gap: 8px; padding: 9px var(--dsh-push-pad-x);
   border-bottom: 1px solid var(--dsw-alias-border-l1); }
-.dsh-push-page-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px 16px 16px; }
-.dsh-push-page-foot { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+.dsh-push-page-body { flex: 1 1 auto; min-height: 0; overflow: auto;
+  padding: 8px var(--dsh-push-pad-x) 20px; }
+.dsh-push-page-foot { flex: none; display: flex; align-items: center; gap: 8px; padding: 11px var(--dsh-push-pad-x);
   border-top: 1px solid var(--dsw-alias-border-l1); flex-wrap: wrap; }
 .dsh-push-search { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px;
   flex: 1 1 220px;
@@ -1770,15 +1833,30 @@ window.__ModuleLoader__.load({
 
 /* ── sidebar tab ─────────────────────────────────────────────────────── */
 .dsh-push-tab { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: 13px;
+  /* 右侧栏同样偏窄，用与左侧栏一致的 18px。 */
+  --dsh-push-pad-x: 18px;
   color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }
-.dsh-push-tab-head { flex: none; padding: 6px 10px; border-bottom: 1px solid var(--dsw-alias-border-l1); }
+.dsh-push-tab-head { flex: none; padding: 8px var(--dsh-push-pad-x);
+  border-bottom: 1px solid var(--dsw-alias-border-l1); }
 .dsh-push-tab-repo { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .dsh-push-tab-repo-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dsh-push-tab-repo-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   margin-top: 3px; font-size: 11px; color: var(--dsw-alias-label-secondary); }
 .dsh-push-toolbar { flex: none; display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px;
   border-bottom: 1px solid var(--dsw-alias-border-l1); }
-.dsh-push-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+/* 内容区：左右留出和内边距一致的空白。
+ * 之前这里没有任何 padding，所有子元素都直接顶着容器边缘。 */
+.dsh-push-scroll { flex: 1 1 auto; min-height: 0; overflow: auto;
+  padding: 8px var(--dsh-push-pad-x) 20px; }
+/* 右侧栏内部的行与分组：容器已有 18px，行内再退 2px，避免行内容
+ * （名称、按钮）与容器边缘之间只剩视觉上的一线之差。 */
+.dsh-push-tab .dsh-push-row { padding-left: 2px; padding-right: 2px; }
+.dsh-push-tab .dsh-push-group-head { padding-left: 2px; padding-right: 2px; }
+.dsh-push-tab .dsh-push-group + .dsh-push-group { margin-top: 12px; }
+/* 分组之间要有明显间隙，否则几个区块会连成一片。 */
+.dsh-push-tab .dsh-push-group { gap: 2px; }
+/* 直接放在 scroll 里的子区块也要有底部留白。 */
+.dsh-push-scroll > * + * { margin-top: 12px; }
 .dsh-push-section { border-bottom: 1px solid var(--dsw-alias-border-l1); }
 .dsh-push-section-head { display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px;
   font-size: 12px; font-weight: 600; color: var(--dsw-alias-label-secondary); }
@@ -1953,6 +2031,15 @@ window.__ModuleLoader__.load({
 .dsh-push-rv-sev--info { border-left-color: var(--dsw-alias-border-l2); }
 .dsh-push-rv-finding-head { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
 .dsh-push-rv-sev { font-size: 11px; font-weight: 600; }
+.dsh-push-rv-sev { font-size: 11px; font-weight: 600; }
+/* 严重度圆点：颜色继承 .dsh-push-rv-sev，父级修饰类决定具体色值。 */
+.dsh-push-rv-dot { display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; margin-right: 5px; background: currentColor;
+  vertical-align: middle; }
+/* 问题所在文件：等宽小字，弱化但可读。 */
+.dsh-push-rv-finding-file { margin-top: 3px; font-size: 10px;
+  color: var(--dsw-alias-label-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .dsh-push-rv-sev--blocker .dsh-push-rv-sev { color: var(--dsw-alias-state-error-primary); }
 .dsh-push-rv-sev--high .dsh-push-rv-sev { color: var(--dsw-alias-state-warn-primary); }
 .dsh-push-rv-finding-title { font-weight: 500; }
@@ -2000,6 +2087,11 @@ window.__ModuleLoader__.load({
 .dsh-push-pswitch-btn:hover .dsh-push-pswitch-caret {
   color: var(--dsw-alias-label-primary); }
 /* 菜单浮在内容之上，不挤压布局。 */
+/* 菜单是浮层，父级不能裁。tab-head / page-head 都可能有 overflow。 */
+.dsh-push-tab-head, .dsh-push-page-head { overflow: visible; }
+/* 头部里的切换器是定位基准。 */
+.dsh-push-tab-head .dsh-push-pswitch,
+.dsh-push-page-head .dsh-push-pswitch { position: relative; z-index: 40; }
 .dsh-push-pswitch-menu { position: absolute; top: calc(100% + 4px); left: 0;
   z-index: 30; min-width: 150px; padding: 4px; display: flex;
   flex-direction: column; gap: 2px; border-radius: 8px;
@@ -2052,6 +2144,49 @@ window.__ModuleLoader__.load({
 .dsh-push-npm-check-msg { font-size: 12px;
   color: var(--dsw-alias-label-primary); }
 
+/* ── npm 目录条 ──────────────────────────────────────────────────── */
+.dsh-push-npm-dirbar { display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; margin-bottom: 8px; border-radius: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary); min-width: 0; }
+.dsh-push-npm-dirbar--compact { padding: 4px 8px; margin-bottom: 6px; }
+.dsh-push-npm-dirbar-path { font-size: 11px; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.dsh-push-npm-dirbar-empty { font-size: 11px;
+  color: var(--dsw-alias-label-secondary); }
+
+/* 侧栏里的审查条：一行说明 + 按钮，不抢视线。 */
+.dsh-push-npm-reviewbar { padding: 2px 0 4px; align-items: center; }
+
+/* ── 顶部入口：还没选目录时的引导区 ─────────────────────────────── *//* ── 顶部入口：还没选目录时的引导区 ─────────────────────────────── */
+/* 占满内容区、居中，让「需要先做一件事」这个信息一眼可见，
+ * 而不是藏在左下角一个 mini 按钮里。 */
+.dsh-push-pickguide-wrap { flex: 1 1 auto; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 32px 24px; }
+.dsh-push-pickguide { display: flex; flex-direction: column;
+  align-items: center; gap: 10px; max-width: 420px; text-align: center; }
+.dsh-push-pickguide-title { font-size: 15px; font-weight: 600;
+  color: var(--dsw-alias-label-primary); }
+.dsh-push-pickguide-text { font-size: 12px; line-height: 18px;
+  color: var(--dsw-alias-label-secondary); }
+/* 大一号的按钮：比正文按钮高，hover/focus 与其它按钮一致。 */
+.dsh-push-pickguide-btn { margin-top: 6px; height: 34px; padding: 0 20px;
+  font-size: 13px; font-weight: 600; }
+/* 有目录之后，面板自己占满剩余空间。 */
+.dsh-push-pickguide-panel { flex: 1 1 auto; min-height: 0; display: flex; }
+.dsh-push-pickguide-panel > * { flex: 1 1 auto; min-width: 0; }
+
+/* 会话标题栏里的入口按钮：尺寸与宿主那排图标一致，避免显得突兀。 *//* 会话标题栏里的入口按钮：尺寸与宿主那排图标一致，避免显得突兀。 */
+.dsh-push-headerbtn { display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex: none; padding: 0; cursor: pointer;
+  border-radius: 7px; border: 1px solid transparent; background: transparent;
+  color: var(--dsw-alias-label-secondary); }
+.dsh-push-headerbtn:hover { color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-border-l1); }
 /* ── npm 包卡片：与 repo 卡片同构（固定高度、描述两行、指标在底部） ── */
 .dsh-push-pkgcard { display: flex; flex-direction: column; gap: 6px;
   min-height: 148px; padding: 12px;
@@ -2268,7 +2403,13 @@ window.__ModuleLoader__.load({
     /** One <style> element in document.head; no client.css route is owned here. */
     function injectStyles() {
       if (typeof document === 'undefined') return;
-      if (document.getElementById(STYLE_ID)) return;
+      const existing = document.getElementById(STYLE_ID);
+      if (existing) {
+        // 插件重载后样式表可能已经存在：必须把新内容写进去，
+        // 否则「改了 CSS 却看不出变化」，只有整页刷新才生效。
+        if (existing.textContent !== CSS) existing.textContent = CSS;
+        return;
+      }
       const style = document.createElement('style');
       style.id = STYLE_ID;
       style.dataset.dshGithubLink = '1';
@@ -2404,6 +2545,7 @@ window.__ModuleLoader__.load({
       },
         h('div', {
           className: 'dsh-push-modal' + (props.wide ? ' dsh-push-modal--wide' : '')
+            + (props.fill ? ' dsh-push-modal--fill' : '')
             + (props.bare ? ' dsh-push-modal--bare' : ''),
           role: 'dialog',
           'aria-modal': 'true',
@@ -5320,7 +5462,112 @@ function SidebarIcon(props) {
       }, h(DevDockMark, { size: (props && props.size) || 16 }));
     }
 
-    /* ───────────── npm 模块：账号与包（只读） ───────────── */
+    /**
+ * 会话标题栏里的 DevDock 入口。
+ *
+ * 提到模块级而不是定义在 apply 里：冷启动时 apply 会重新执行，
+ * 若组件闭包绑在上一次 apply 的 ctx 上，渲染时就会拿到失效的引用，
+ * 表现正是「重载后正常、重启后消失」。现在它只通过 props 取 ctx。
+ *
+ * 点击后用一个 fill 弹窗承载完整的 DevDock 面板——官方 shell 里没有
+ * 可依赖的右侧栏注册位，这是对纯原版客户端唯一的入口。
+ *
+ * @param {{ctx: object}} props
+ */
+/** 只取路径最后一段，避免在窄按钮里被截断得看不出是哪个目录。 */
+function basename(input) {
+  const text = String(input || '').replace(/[\\/]+$/, '');
+  const parts = text.split(/[\\/]/);
+  return parts[parts.length - 1] || text;
+}
+
+function DevDockHeaderEntry(props) {
+  const ctx = props.ctx;
+  const [open, setOpen] = useState(false);
+  // 入口不属于任何工作区，需要自己记一个目录；选过的值下次还在。
+  const [dir, setDir] = useState(() => readViewPref('headerDir', ''));
+
+  /* 系统目录选择框：官方 uiWorkspace 服务提供。拿不到就退化成手填。 */
+  const pick = async () => {
+    let chosen = null;
+    try {
+      const workspace = typeof ctx.get === 'function' ? ctx.get('uiWorkspace') : null;
+      if (workspace && typeof workspace.pickDirectory === 'function') {
+        chosen = await workspace.pickDirectory();
+      }
+    } catch { /* 用户取消或服务不可用 */ }
+    if (typeof chosen === 'string' && chosen !== '') {
+      setDir(chosen);
+      writeViewPref('headerDir', chosen);
+    }
+  };
+
+  /* 清除已选目录，回到引导区。
+   * 没有这个动作的话，选过一次就再也换不掉——值一直存在偏好里。 */
+  const clear = () => {
+    setDir('');
+    writeViewPref('headerDir', '');
+  };
+
+  const scope = dir === '' ? undefined : { cwd: dir };
+
+  /* 没有目录时的引导区：说明 + 大按钮。
+   * 小按钮留在弹窗左下角（选过之后它显示当前路径，也是切换入口），
+   * 但「还没选目录」这个状态需要更醒目的提示，否则用户不知道要做什么。 */
+  const emptyGuide = dir !== '' ? null : h('div', { className: 'dsh-push-pickguide' },
+    h(NpmMark, { size: 28 }),
+    h('div', { className: 'dsh-push-pickguide-title' }, t('headerNeedDirTitle')),
+    h('div', { className: 'dsh-push-pickguide-text' }, t('headerNeedDirText')),
+    h('button', {
+      type: 'button',
+      className: 'dsh-push-btn dsh-push-btn--primary dsh-push-pickguide-btn',
+      onClick: pick,
+    }, t('headerPickDirBig')));
+
+  return [
+    h('button', {
+      key: 'btn',
+      type: 'button',
+      className: 'dsh-push-headerbtn',
+      title: 'DevDock',
+      'aria-label': 'DevDock',
+      'aria-expanded': open ? 'true' : 'false',
+      onClick: () => setOpen((value) => !value),
+    }, h(DevDockMark, { size: 16 })),
+    h(Modal, {
+      key: 'modal',
+      open,
+      onClose: () => setOpen(false),
+      title: 'DevDock',
+      wide: true,
+      fill: true,
+      footer: [
+        h('div', { className: 'dsh-push-modal-status', key: 'status' },
+          h('button', {
+            type: 'button',
+            className: 'dsh-push-btn dsh-push-btn--mini',
+            title: dir === '' ? t('headerPickDir') : dir,
+            onClick: pick,
+          }, dir === '' ? t('headerPickDir') : basename(dir)),
+          dir === ''
+            ? null
+            : h('button', {
+              type: 'button',
+              className: 'dsh-push-btn dsh-push-btn--mini',
+              title: t('headerClearDir'),
+              onClick: clear,
+            }, t('headerClearDir'))),
+        h(Btn, { key: 'close', onClick: () => setOpen(false) }, t('close')),
+      ],
+    }, [
+      emptyGuide ? h('div', { key: 'guide', className: 'dsh-push-pickguide-wrap' }, emptyGuide) : null,
+      // 没有目录时面板几乎全是空状态，留着只会把引导区挤到上面一小条。
+      dir === '' ? null : h('div', { key: 'panel', className: 'dsh-push-pickguide-panel' },
+        h(WorkspaceTab, { ctx, visible: true, scope })),
+    ]),
+  ];
+}
+/* ───────────── npm 模块：账号与包 ───────────── */
 
 /**
  * DevDock 的 npm 模块。
@@ -5390,6 +5637,277 @@ function NpmAccountPicker(props) {
     }, account.login))));
 }
 
+/* ───────────── npm 发布前审查（复用 GitHub 那套选择方式） ───────────── */
+
+/**
+ * 发布前审查对话框。
+ *
+ * 选择方式与 GitHub 的推送前审查完全一致：勾选审查项、选模型与思考强度、
+ * 可加自定义要求。差别只在审查对象——那边看 git diff，这里看「即将发布
+ * 的包内容」。
+ *
+ * 复用同一个 /review/presets 与 /review/models 数据源，所以用户在设置里
+ * 保存的自定义预设，两边都能用。
+ *
+ * @param {{open: boolean, ctx: object, cwd: string, onClose: () => void,
+ *   onReviewed?: (result: object) => void}} props
+ */
+function NpmReviewDialog(props) {
+  const ctx = props.ctx;
+  const [step, setStep] = useState('configure');
+  const [presets, setPresets] = useState({ builtin: [], custom: [], categories: [] });
+  const [models, setModels] = useState({ providers: [], default: null });
+  const [picked, setPicked] = useState({});
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [modelValue, setModelValue] = useState({ provider: '', model: '', reasoningEffort: '' });
+  const [result, setResult] = useState(null);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState('');
+  const aliveRef = useRef(true);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
+
+  /* 每次打开都重新拉目录：设置里刚改的预设应当立即可见。 */
+  useEffect(() => {
+    if (!props.open) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api(ctx, API + '/review/presets');
+        if (cancelled || !aliveRef.current) return;
+        setPresets({
+          builtin: (data && data.builtin) || [],
+          custom: (data && data.custom) || [],
+          categories: (data && data.categories) || [],
+        });
+      } catch (err) {
+        if (!cancelled && aliveRef.current) setError(err.message);
+      }
+      try {
+        const data = await api(ctx, API + '/review/models');
+        if (cancelled || !aliveRef.current) return;
+        setModels({
+          providers: (data && data.providers) || [],
+          default: (data && data.default) || null,
+        });
+        if (data && data.default) {
+          setModelValue({
+            provider: data.default.provider || '',
+            model: data.default.model || '',
+            reasoningEffort: data.default.reasoningEffort || '',
+          });
+        }
+      } catch { /* 没有模型也能只跑规则扫描 */ }
+    })();
+    return () => { cancelled = true; };
+  }, [ctx, props.open]);
+
+  const reset = () => {
+    setStep('configure');
+    setResult(null);
+    setError('');
+    setRunning(false);
+  };
+
+  const togglePreset = (id) => setPicked((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const allPresets = [...presets.builtin, ...presets.custom];
+  const selectedIds = Object.keys(picked).filter((id) => picked[id]);
+
+  const run = async () => {
+    setRunning(true);
+    setError('');
+    setResult(null);
+    setStep('running');
+    try {
+      const data = await api(ctx, API + '/npm/review/run', {
+        method: 'POST',
+        body: {
+          path: props.cwd,
+          presetIds: selectedIds,
+          customPrompt: customPrompt.trim(),
+          provider: modelValue.provider,
+          model: modelValue.model,
+          reasoningEffort: modelValue.reasoningEffort || undefined,
+        },
+      });
+      if (!aliveRef.current) return;
+      setResult(data);
+      setStep('result');
+      if (typeof props.onReviewed === 'function') props.onReviewed(data);
+    } catch (err) {
+      if (!aliveRef.current) return;
+      setError(err.message);
+      setStep('configure');
+    } finally {
+      if (aliveRef.current) setRunning(false);
+    }
+  };
+
+  if (!props.open) return null;
+
+  const providerList = models.providers || [];
+  const activeProvider = providerList.find((row) => row.id === modelValue.provider);
+  const modelList = (activeProvider && activeProvider.models) || [];
+
+  /* ---- 配置页：结构与 GitHub 的 ReviewDialog 一致 ---- */
+  const configureBody = [
+    h('div', { className: 'dsh-push-rv-head', key: 'head' },
+      h('span', { className: 'dsh-push-rv-title' }, t('npmReviewTitle')),
+      h('span', { className: 'dsh-push-rv-spacer' }),
+      h('button', {
+        type: 'button',
+        className: 'dsh-push-iconbtn',
+        title: t('rvClose'),
+        'aria-label': t('rvClose'),
+        onClick: props.onClose,
+      }, h(Icon, { name: 'close', size: 13 }))),
+
+    h('div', { className: 'dsh-push-rv-sub', key: 'model' },
+      h('span', { className: 'dsh-push-rv-sub-label' }, t('rvModel')),
+      h('select', {
+        className: 'dsh-push-select',
+        value: modelValue.provider,
+        onChange: (e) => setModelValue({ provider: e.target.value, model: '', reasoningEffort: '' }),
+      },
+        h('option', { value: '' }, t('rvNoModel')),
+        providerList.map((row) => h('option', { key: row.id, value: row.id }, row.name || row.id))),
+      h('select', {
+        className: 'dsh-push-select',
+        value: modelValue.model,
+        disabled: modelList.length === 0,
+        onChange: (e) => setModelValue(Object.assign({}, modelValue, { model: e.target.value, reasoningEffort: '' })),
+      },
+        h('option', { value: '' }, '—'),
+        modelList.map((row) => h('option', { key: row.id, value: row.id }, row.name || row.id)))),
+
+    h('div', { className: 'dsh-push-rv-divider', key: 'd1' }),
+
+    /* 唯一可滚动的区域：预设可能很多，其余部分保持不动、页脚始终可达。 */
+    h('div', { className: 'dsh-push-rv-scroll', key: 'presets' },
+      presets.categories.map((category) => {
+        const inCategory = allPresets.filter((preset) => preset.category === category.id);
+        if (inCategory.length === 0) return null;
+        return h('div', { className: 'dsh-push-rv-group', key: category.id },
+          h('div', { className: 'dsh-push-rv-group-head' }, category.label || category.title),
+          h('div', { className: 'dsh-push-rv-cards' }, inCategory.map((preset) => {
+            const on = Boolean(picked[preset.id]);
+            return h('button', {
+              key: preset.id,
+              type: 'button',
+              className: 'dsh-push-rv-card' + (on ? ' is-on' : ''),
+              'aria-pressed': on ? 'true' : 'false',
+              onClick: () => togglePreset(preset.id),
+            },
+              h('span', { className: 'dsh-push-rv-card-check' },
+                on ? h(Icon, { name: 'check', size: 11 }) : null),
+              h('span', { className: 'dsh-push-rv-card-main' },
+                h('span', { className: 'dsh-push-rv-card-title' }, preset.title),
+                h('span', { className: 'dsh-push-rv-card-desc' }, preset.description || '')));
+          })));
+      })),
+
+    h('div', { className: 'dsh-push-rv-divider', key: 'd2' }),
+
+    h('div', { className: 'dsh-push-rv-custom', key: 'custom' },
+      h('div', { className: 'dsh-push-rv-custom-head' },
+        h('span', null, t('rvCustomPrompt'))),
+      h('textarea', {
+        className: 'dsh-push-rv-textarea',
+        placeholder: t('rvCustomPlaceholder'),
+        value: customPrompt,
+        onChange: (e) => setCustomPrompt(e.target.value),
+      })),
+
+    props.cwd === ''
+      ? h('div', { className: 'dsh-push-error dsh-push-rv-error', key: 'nodir' }, t('npmReviewNeedDir'))
+      : null,
+    error ? h('div', { className: 'dsh-push-error dsh-push-rv-error', key: 'err' }, error) : null,
+  ];
+
+  const configureFooter = [
+    h('span', { className: 'dsh-push-rv-muted', key: 'count' },
+      selectedIds.length > 0
+        ? t('rvSelected', { n: selectedIds.length })
+        : t('rvSelectionEmpty')),
+    h('span', { className: 'dsh-push-rv-spacer', key: 'spacer' }),
+    h(Btn, { key: 'cancel', onClick: props.onClose }, t('rvCancel')),
+    h(Btn, {
+      key: 'run',
+      kind: 'primary',
+      disabled: running || props.cwd === '',
+      onClick: run,
+    }, running ? t('loading') : t('rvRun')),
+  ];
+
+  /* ---- 结果页 ---- */
+  const findings = (result && result.findings) || [];
+  const blockers = findings.filter((row) => row.severity === 'blocker').length;
+
+  const resultBody = [
+    h('div', { className: 'dsh-push-rv-head', key: 'head' },
+      h('span', { className: 'dsh-push-rv-title' }, t('npmReviewResultTitle')),
+      h('span', { className: 'dsh-push-rv-spacer' }),
+      h('button', {
+        type: 'button',
+        className: 'dsh-push-iconbtn',
+        title: t('rvClose'),
+        'aria-label': t('rvClose'),
+        onClick: props.onClose,
+      }, h(Icon, { name: 'close', size: 13 }))),
+
+    h('div', { className: 'dsh-push-rv-summary', key: 'summary' },
+      (result && result.summary) || ''),
+
+    result && result.degraded
+      ? h('div', { className: 'dsh-push-rv-muted', key: 'degraded' }, t('rvDegraded'))
+      : null,
+    props.cwd === ''
+      ? null
+      : null,
+
+    h('div', { className: 'dsh-push-rv-scroll', key: 'findings' },
+      findings.length === 0
+        ? h('div', { className: 'dsh-push-ok' }, t('rvNoFindings'))
+        : h('div', { className: 'dsh-push-rv-findings' }, findings.map((finding, index) => h('div', {
+          key: (finding.id || finding.file || 'f') + ':' + index,
+          className: 'dsh-push-rv-finding ' + (SEVERITY_TONE[finding.severity] || ''),
+        },
+          h('div', { className: 'dsh-push-rv-finding-head' },
+            h('span', { className: 'dsh-push-rv-sev' },
+              h('span', { className: 'dsh-push-rv-dot' }),
+              t(SEVERITY_LABEL[finding.severity] || 'rvSeverityInfo')),
+            h('span', { className: 'dsh-push-rv-finding-title' }, finding.title)),
+          finding.detail
+            ? h('div', { className: 'dsh-push-rv-finding-detail' }, finding.detail)
+            : null,
+          finding.file
+            ? h('div', { className: 'dsh-push-rv-finding-file' }, finding.file)
+            : null)))),
+
+    blockers > 0
+      ? h('div', { className: 'dsh-push-error dsh-push-rv-error', key: 'blocked' }, t('npmReviewBlocker'))
+      : null,
+  ];
+
+  const resultFooter = [
+    h('span', { className: 'dsh-push-rv-spacer', key: 'spacer' }),
+    h(Btn, { key: 'again', onClick: reset }, t('rvRunAgain')),
+    h(Btn, { key: 'done', kind: 'primary', onClick: () => { reset(); props.onClose(); } }, t('rvDone')),
+  ];
+
+  return h(Modal, {
+    open: props.open,
+    // bare：对话框自己渲染头部（标题 + 关闭），避免出现两条标题栏。
+    bare: true,
+    wide: true,
+    onClose: () => { reset(); props.onClose(); },
+    footer: step === 'result' ? resultFooter : configureFooter,
+  }, step === 'result' ? resultBody : configureBody);
+}
 /* ───────────── npm 包卡片 + 管理弹窗（对齐 GitHub 的列表/卡片） ───────────── */
 
 /**
@@ -5511,7 +6029,10 @@ function NpmPackageModal(props) {
   const ctx = props.ctx;
   const pkg = props.pkg || {};
   const name = typeof pkg.name === 'string' ? pkg.name : '';
-  const cwd = props.cwd || '';
+  // 从包列表打开时没有目录，所以这个弹窗自己解析一个：
+  // 有 props.cwd 用它，否则用用户在目录条里选的。
+  const dirState = useNpmDir(ctx, props.cwd || '');
+  const cwd = dirState.dir;
   const open = Boolean(props.open && name !== '');
 
   const [tab, setTab] = useState('overview');
@@ -5527,6 +6048,9 @@ function NpmPackageModal(props) {
   const [otp, setOtp] = useState('');
   const [needOtp, setNeedOtp] = useState(false);
   const [publishArm, setPublishArm] = useState(false);
+  /* 发布前审查：与 GitHub 推送一致的两步流程。 */
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewDone, setReviewDone] = useState(null);
 
   const aliveRef = useRef(true);
   useEffect(() => {
@@ -5649,11 +6173,15 @@ function NpmPackageModal(props) {
 
   /* 发布页：这是「发布版本」的入口，也是这个弹窗存在的主要理由之一。 */
   const publishPage = h('div', { className: 'dsh-push-modal-page' },
+    /* 目录条放在最上面：没有目录时它就是「选择目录」的入口，
+     * 而不是让用户对着一句错误提示束手无策。 */
+    h(NpmDirBar, {
+      ctx,
+      dir: cwd,
+      onPick: dirState.pick,
+      onClear: dirState.clear,
+    }),
     h('div', { className: 'dsh-push-hint' }, t('npmPublishHint')),
-
-    !cwd
-      ? h('div', { className: 'dsh-push-error' }, t('npmPublishNeedWorkspace'))
-      : null,
 
     h('div', { className: 'dsh-push-field' },
       h('span', { className: 'dsh-push-field-label' }, t('npmPublishTag')),
@@ -5682,6 +6210,17 @@ function NpmPackageModal(props) {
 
     h('div', { className: 'dsh-push-row-hint' },
       t('npmPublishVersionNote', { version: publishVersion || '—' })),
+    /* 审查入口：和 GitHub 推送面板一样，先看清楚再发。 */
+    h('div', { className: 'dsh-push-inline' },
+      h(Btn, { mini: true, disabled: busy || !cwd, onClick: () => setReviewOpen(true) },
+        t('npmReviewOpen'))),
+
+    reviewDone
+      ? h('div', { className: 'dsh-push-npm-facts' },
+        packageFact(t('npmReviewFindings'), String((reviewDone.findings || []).length)),
+        packageFact(t('npmReviewBlockerCount'), String((reviewDone.findings || [])
+          .filter((row) => row.severity === 'blocker').length)))
+      : null,
 
     /* 发布是不可逆写操作：走两步确认，和删除仓库那个模式一致。 */
     publishArm
@@ -5729,7 +6268,14 @@ function NpmPackageModal(props) {
       })),
     h('div', { className: 'dsh-push-modal-body' },
       error && tab !== 'publish' ? h('div', { className: 'dsh-push-error' }, error) : null,
-      page));
+      page),
+    h(NpmReviewDialog, {
+      open: reviewOpen,
+      ctx,
+      cwd,
+      onClose: () => setReviewOpen(false),
+      onReviewed: (data) => setReviewDone(data),
+    }));
 }
 
 /* ───────────── npm 账号卡片（仅设置页） ───────────── */
@@ -5864,9 +6410,17 @@ function NpmAccountCards(props) {
         })),
       }, h(Icon, { name: 'close', size: 12 }))));
 
-  const stackChildren = [list.length === 0 && !adding ? emptyCard : null]
-    .concat(list.map(accountCard));
-  if (list.length > 0) stackChildren.push(adding ? addPanel : addRow);
+  /* 渲染顺序：账号卡片 → 添加表单（adding 时）。
+   * 关键点：adding 一旦为 true 就必须出现输入框，与「当前有几个账号」无关。
+   * 之前把空卡片和添加表单绑在互斥分支里，导致点了空卡片没反应。 */
+  const stackChildren = list.map(accountCard);
+  if (adding) {
+    stackChildren.push(addPanel);
+  } else if (list.length === 0) {
+    stackChildren.push(emptyCard);
+  } else {
+    stackChildren.push(addRow);
+  }
 
   return h('div', { className: 'dsh-push-group' },
     h('div', { className: 'dsh-push-group-head' },
@@ -5908,6 +6462,10 @@ function NpmSearchPanel(props) {
   const [viewMode, setViewMode] = useState(() => readViewPref('npm.panel', 'list'));
   const [cardSize, setCardSize] = useState(() => readViewPref('npm.panel.size', 'small'));
   const [managePkg, setManagePkg] = useState(null);
+  // 目录 + 发布前审查：侧栏没有 scope，自己记一个目录。
+  const dirState = useNpmDir(ctx, props.cwd || '');
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewDone, setReviewDone] = useState(null);
   const aliveRef = useRef(true);
 
   useEffect(() => {
@@ -6050,8 +6608,29 @@ function NpmSearchPanel(props) {
         onManage: () => setManagePkg(pkg),
       }))));
 
+  const reviewBar = h('div', { className: 'dsh-push-inline dsh-push-npm-reviewbar' },
+    h('span', { className: 'dsh-push-row-hint' },
+      reviewDone
+        ? t('npmReviewSummary', {
+          n: (reviewDone.findings || []).length,
+          b: (reviewDone.findings || []).filter((row) => row.severity === 'blocker').length,
+        })
+        : t('npmReviewHintShort')),
+    h('span', { className: 'dsh-push-page-spacer' }),
+    h(Btn, { mini: true, onClick: () => setReviewOpen(true) }, t('npmReviewOpen')));
+
   return h('div', { className: 'dsh-push-npm-browse' },
     searchRow,
+    // 目录条始终显示：没有目录时它是「选择目录」的入口，
+    // 而不是让用户面对一个没有出口的提示。
+    h(NpmDirBar, {
+      ctx,
+      dir: dirState.dir,
+      onPick: dirState.pick,
+      onClear: dirState.clear,
+      compact: true,
+    }),
+    reviewBar,
     viewSwitch,
     props.available ? null : h('div', { className: 'dsh-push-hint' }, t('npmNeedLogin')),
     error ? h('div', { className: 'dsh-push-error' }, error) : null,
@@ -6064,6 +6643,13 @@ function NpmSearchPanel(props) {
       cwd: props.cwd || '',
       onClose: () => setManagePkg(null),
       onChanged: () => { if (term === '') loadMine(); else search(term); },
+    }),
+    h(NpmReviewDialog, {
+      open: reviewOpen,
+      ctx,
+      cwd: dirState.dir,
+      onClose: () => setReviewOpen(false),
+      onReviewed: (data) => setReviewDone(data),
     }));
 }
 
@@ -6215,7 +6801,10 @@ function NpmPackPanel(props) {
  */
 function NpmPublishRow(props) {
   const ctx = props.ctx;
-  const cwd = props.cwd || '';
+  // 发布必须有真实目录。没有时这个组件自己负责让用户选一个，
+  // 而不是只显示一句「需要选择工作区」。
+  const dirState = useNpmDir(ctx, props.cwd || '');
+  const cwd = dirState.dir;
   const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -6245,6 +6834,12 @@ function NpmPublishRow(props) {
   };
 
   return h('div', { className: 'dsh-push-npm-publish' },
+    h(NpmDirBar, {
+      ctx,
+      dir: cwd,
+      onPick: dirState.pick,
+      onClear: dirState.clear,
+    }),
     h('div', { className: 'dsh-push-row-hint' }, t('npmPublishHint')),
     needOtp
       ? h('div', { className: 'dsh-push-inline' },
@@ -6281,11 +6876,15 @@ function NpmPublishRow(props) {
  */
 function NpmProjectPanel(props) {
   const ctx = props.ctx;
-  const cwd = props.cwd || '';
   const [manifest, setManifest] = useState(null);
   const [preflight, setPreflight] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // 目录：工作区标签页有 scope 时以它为准，否则用面板里选的。
+  const dirState = useNpmDir(ctx, props.cwd || '');
+  const cwd = dirState.dir;
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewDone, setReviewDone] = useState(null);
   const aliveRef = useRef(true);
 
   useEffect(() => {
@@ -6313,11 +6912,31 @@ function NpmProjectPanel(props) {
 
   useEffect(() => { load(); }, [load]);
 
-  if (cwd === '') return h('div', { className: 'dsh-push-hint' }, t('npmDepsNoCwd'));
+  /* 没有目录时也要给出完整控件：目录条用来选，审查入口保留
+   * （审查会提示先选目录），只有依赖目录的数据分组隐藏。
+   * 之前这里直接 return，导致整个面板只剩一句提示。 */
+  if (cwd === '') {
+    return h('div', { className: 'dsh-push-npm-project' },
+      h(NpmDirBar, { ctx, dir: cwd, onPick: dirState.pick }),
+      h('div', { className: 'dsh-push-hint' }, t('npmDepsNoCwd')),
+      h('div', { className: 'dsh-push-group' },
+        h('div', { className: 'dsh-push-group-head' },
+          h('span', null, t('npmReviewTitle')),
+          h(Btn, { mini: true, onClick: () => setReviewOpen(true) }, t('npmReviewOpen'))),
+        h('div', { className: 'dsh-push-row-hint' }, t('npmReviewHint'))),
+      h(NpmReviewDialog, {
+        open: reviewOpen,
+        ctx,
+        cwd,
+        onClose: () => setReviewOpen(false),
+        onReviewed: (data) => setReviewDone(data),
+      }));
+  }
 
   /* 没有 package.json：给出创建入口，而不是一句死路提示。 */
   if (!busy && !manifest && !preflight && error) {
     return h('div', { className: 'dsh-push-npm-project' },
+      h(NpmDirBar, { ctx, dir: cwd, onPick: dirState.pick, onClear: dirState.clear }),
       h(NpmInitCard, { ctx, cwd, onCreated: load }),
       h('div', { className: 'dsh-push-hint' }, error));
   }
@@ -6332,7 +6951,7 @@ function NpmProjectPanel(props) {
   const checks = (preflight && preflight.checks) || [];
   const checkRow = (rowItem) => h('div', { key: rowItem.id, className: 'dsh-push-npm-check' },
     h('span', { className: 'dsh-push-sev ' + (TONE[rowItem.level] || '') },
-      h('span', { className: 'dsh-push-sev-dot' })),
+      h('span', { className: 'dsh-push-rv-dot' })),
     h('span', { className: 'dsh-push-npm-check-msg' }, rowItem.message),
     rowItem.hint ? h('span', { className: 'dsh-push-row-hint' }, rowItem.hint) : null);
 
@@ -6366,9 +6985,30 @@ function NpmProjectPanel(props) {
     checkList);
 
   return h('div', { className: 'dsh-push-npm-project' },
+    h(NpmDirBar, { ctx, dir: cwd, onPick: dirState.pick, onClear: dirState.clear }),
     group,
+
+    /* 发布前审查：三处 npm 面板都有这个入口，行为一致。 */
+    h('div', { className: 'dsh-push-group' },
+      h('div', { className: 'dsh-push-group-head' },
+        h('span', null, t('npmReviewTitle')),
+        h(Btn, { mini: true, onClick: () => setReviewOpen(true) }, t('npmReviewOpen'))),
+      reviewDone
+        ? h('div', { className: 'dsh-push-npm-facts' },
+          packageFact(t('npmReviewFindings'), String((reviewDone.findings || []).length)),
+          packageFact(t('npmReviewBlockerCount'), String((reviewDone.findings || [])
+            .filter((row) => row.severity === 'blocker').length)))
+        : h('div', { className: 'dsh-push-row-hint' }, t('npmReviewHint'))),
+
     h(NpmPackPanel, { ctx, cwd }),
-    h(NpmDepsSection, { ctx, cwd }));
+    h(NpmDepsSection, { ctx, cwd }),
+    h(NpmReviewDialog, {
+      open: reviewOpen,
+      ctx,
+      cwd,
+      onClose: () => setReviewOpen(false),
+      onReviewed: (data) => setReviewDone(data),
+    }));
 }
 
 /* ───────────── npm 设置页：账号卡片 + 我的包 ───────────── */
@@ -6388,6 +7028,10 @@ function NpmSection(props) {
   const [viewMode, setViewMode] = useState(() => readViewPref('npm.section', 'card'));
   const [cardSize, setCardSize] = useState(() => readViewPref('npm.section.size', 'small'));
   const [managePkg, setManagePkg] = useState(null);
+  // 设置页同样自己记一个目录；三处共用同一个偏好键。
+  const dirState = useNpmDir(ctx, '');
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewDone, setReviewDone] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const aliveRef = useRef(true);
@@ -6460,10 +7104,12 @@ function NpmSection(props) {
       h('div', { className: 'dsh-push-group-head' },
         h('span', null, t('npmPackagesSection')),
         h(Btn, { mini: true, disabled: busy, onClick: refresh },
-          busy ? t('loading') : t('refresh'))),
+          busy ? t('loading') : t('refresh')),
+        h(Btn, { mini: true, onClick: () => setReviewOpen(true) }, t('npmReviewOpen'))),
       viewSwitch,
       error ? h('div', { className: 'dsh-push-error' }, error) : null,
       list),
+    h(NpmDirBar, { ctx, dir: dirState.dir, onPick: dirState.pick, onClear: dirState.clear }),
     h(NpmPackageModal, {
       open: Boolean(managePkg),
       ctx,
@@ -6471,6 +7117,13 @@ function NpmSection(props) {
       cwd: '',
       onClose: () => setManagePkg(null),
       onChanged: loadPackages,
+    }),
+    h(NpmReviewDialog, {
+      open: reviewOpen,
+      ctx,
+      cwd: dirState.dir,
+      onClose: () => setReviewOpen(false),
+      onReviewed: (data) => setReviewDone(data),
     }));
 }
 
@@ -6503,6 +7156,69 @@ async function npmRefreshAccounts(ctx) {
   } catch {
     return npmAccountCache;
   }
+}
+
+/* ───────────── npm 目录选择（三处面板共用） ───────────── */
+
+/**
+ * 目录条：显示当前目录，或提示选一个。
+ *
+ * 发布与打包都依赖一个真实目录，但三处 npm 面板拿不到它的方式不同
+ * （侧栏没有 scope、设置页没有 scope、工作区标签页有 scope）。
+ * 这里统一成一个控件：有 dir 时显示路径，没有时给「选择目录」。
+ *
+ * @param {{ctx: object, dir: string, onPick: () => void, onClear?: () => void,
+ *   compact?: boolean}} props
+ */
+function NpmDirBar(props) {
+  const dir = props.dir || '';
+  return h('div', { className: 'dsh-push-npm-dirbar' + (props.compact ? ' dsh-push-npm-dirbar--compact' : '') },
+    h(Icon, { name: 'branch', size: 12 }),
+    dir === ''
+      ? h('span', { className: 'dsh-push-npm-dirbar-empty' }, t('npmNoDirYet'))
+      : h('span', { className: 'dsh-push-npm-dirbar-path', title: dir }, dir),
+    h('span', { className: 'dsh-push-page-spacer' }),
+    h(Btn, { mini: true, onClick: props.onPick },
+      dir === '' ? t('headerPickDirBig') : t('npmChangeDir')),
+    dir !== '' && typeof props.onClear === 'function'
+      ? h(Btn, { mini: true, onClick: props.onClear }, t('headerClearDir'))
+      : null);
+}
+
+/**
+ * 读取并持久化 npm 面板使用的目录。
+ *
+ * 工作区标签页有 scope 时以 scope 为准（它跟随当前会话），否则用用户
+ * 在本面板里选过的值。这样三处行为一致，又不会互相打架。
+ *
+ * @param {object} ctx
+ * @param {string} scopeDir 来自 props.scope 的目录，可能为空
+ * @returns {{dir: string, pick: () => Promise<void>, clear: () => void}}
+ */
+function useNpmDir(ctx, scopeDir) {
+  const [own, setOwn] = useState(() => readViewPref('npmDir', ''));
+  const dir = scopeDir && scopeDir !== '' ? scopeDir : own;
+
+  const pick = async () => {
+    let chosen = null;
+    try {
+      const workspace = typeof ctx.get === 'function' ? ctx.get('uiWorkspace') : null;
+      if (workspace && typeof workspace.pickDirectory === 'function') {
+        chosen = await workspace.pickDirectory();
+      }
+    } catch { /* 用户取消或服务不可用 */ }
+    if (typeof chosen === 'string' && chosen !== '') {
+      setOwn(chosen);
+      writeViewPref('npmDir', chosen);
+    }
+  };
+
+  const clear = () => {
+    setOwn('');
+    writeViewPref('npmDir', '');
+  };
+
+  return { dir, pick, clear };
 }
 
 /** 一条「标签 : 值」的事实，用于包详情顶部。 *//** 一条「标签 : 值」的事实，用于包详情顶部。 */
@@ -6892,7 +7608,7 @@ function NpmDepsSection(props) {
       /* 左侧栏的 npm 只负责「找包 / 看包」：这里没有账号管理，那是设置页的
        * 职责。三个入口各做一件事，才不会变成三份一样的界面。 */
       if (platform === 'npm') {
-        return h('div', { className: 'dsh-push-root dsh-push-page', style: densityStyle(density) },
+        return h('div', { className: 'dsh-push-root dsh-push-page dsh-push-page--panel', style: densityStyle(density) },
           h('div', { className: 'dsh-push-page-head' },
             h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
             h('span', { className: 'dsh-push-page-spacer' }),
@@ -6911,7 +7627,7 @@ function NpmDepsSection(props) {
             })));
       }
 
-      return h('div', { className: 'dsh-push-root dsh-push-page', style: densityStyle(density) },
+      return h('div', { className: 'dsh-push-root dsh-push-page dsh-push-page--panel', style: densityStyle(density) },
         h('div', { className: 'dsh-push-page-head' },
           // 标题位置放平台切换器：它同时说明「现在看的是哪个平台」和
           // 「可以切到哪」，比一个静态标题信息量更大。
@@ -9306,7 +10022,7 @@ function ReviewDialog(props) {
           reviewDialog,
           h('div', { className: 'dsh-push-tab-head' },
             h('div', { className: 'dsh-push-tab-repo' },
-              h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
+             h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
               h('span', { className: 'dsh-push-page-spacer' }),
               // 发布用的令牌来自当前账号，所以这里必须能看见并切换它。
               h(NpmAccountPicker, { ctx }),
@@ -9322,7 +10038,7 @@ function ReviewDialog(props) {
         reviewDialog,
           h('div', { className: 'dsh-push-tab-head' },
             h('div', { className: 'dsh-push-tab-repo' },
-              h(GithubMark, { size: 14 }),
+             h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
               h('span', { className: 'dsh-push-tab-repo-name' }, t('tabTitle')))),
           h('div', { className: 'dsh-push-scroll' },
             h('div', { className: 'dsh-push-section-sub', style: { padding: '12px 10px' } },
@@ -9337,7 +10053,7 @@ function ReviewDialog(props) {
         reviewDialog,
           h('div', { className: 'dsh-push-tab-head' },
             h('div', { className: 'dsh-push-tab-repo' },
-              h(GithubMark, { size: 14 }),
+             h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
               h('span', { className: 'dsh-push-tab-repo-name' }, t('tabTitle')))),
 
           h('div', { className: 'dsh-push-scroll' },
@@ -9395,7 +10111,7 @@ function ReviewDialog(props) {
         /* ── repo line ── */
         h('div', { className: 'dsh-push-tab-head' },
           h('div', { className: 'dsh-push-tab-repo' },
-            h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
+           h(PlatformSwitcher, { value: platform, onChange: switchPlatform }),
             h('span', { className: 'dsh-push-tab-repo-name', title: cwd },
               status && status.githubRemote
                 ? status.githubRemote.owner + '/' + status.githubRemote.repo
@@ -9841,7 +10557,47 @@ function ReviewDialog(props) {
         console.error('push: sidebar panellist registration failed', err);
       }
 
-      /* C. right-sidebar workspace tab.
+      /* C0. 官方客户端的降级入口。
+       *
+       * 右侧栏的 DevDock 标签来自 `betterSidebar` 服务——那是第三方插件
+       * dsh-better-sidebar 提供的。纯原版客户端没有这个服务，于是那个标签
+       * 永远不会出现，用户会觉得「插件装了但看不见」。
+       *
+       * 官方 shell 里能容纳「工作区工具」的官方座位是会话标题栏的 utilities
+       * 区（右侧那一排图标）。这里注册一个入口按钮，点开 DevDock 面板；
+       * betterSidebar 存在时它同样有效，两边不冲突。
+       */
+      const registerHeaderEntry = () => {
+        if (!ctx.slots || typeof ctx.slots.register !== 'function') return () => {};
+        const dispose = ctx.slots.register({
+          name: 'conversation.session.header.utilities',
+          id: 'devdock',
+          order: 30,
+        }, (props) => h(DevDockHeaderEntry, Object.assign({}, props, { ctx })));
+
+        return typeof dispose === 'function' ? dispose : () => {};
+      };
+
+      /* 顶部入口：必须等「座位被声明」，而不是只等 slots 服务。
+       *
+       * 之前用 ctx.inject(['slots'], ...)：slots 服务早就绪，但
+       * conversation.session.header.utilities 这个座位由会话头部声明，
+       * apply 时通常还不存在，register 落空 -> 入口静默消失（重启后必现）。
+       *
+       * ctx.slots.inject(key, cb) 是官方为此提供的原语：座位已声明则立即
+       * 执行，未声明则等它声明后再执行；座位销毁后自动重跑，插件卸载时
+       * 自动清理。设置页与侧边栏一直用的是这种写法，这里保持一致。 */
+      try {
+        const offInject = ctx.slots.inject('conversation.session.header.utilities', () => {
+          return registerHeaderEntry();
+        });
+        if (typeof ctx.effect === 'function') ctx.effect(() => offInject, 'push: header entry');
+      } catch (err) {
+        // 座位不存在（旧版 shell）时跳过，但要留下可见的痕迹。
+        console.warn('push: header entry unavailable', err && err.message);
+      }
+
+/* C. right-sidebar workspace tab.
        *
        * `betterSidebar` is an OPTIONAL service owned by another bundle, so it
        * is NOT in `inject` (naming it there parks this whole fiber INACTIVE on
@@ -9866,7 +10622,8 @@ function ReviewDialog(props) {
           description: () => t('tabDesc'),
           order: 40,
           single: true,
-          icon: (size) => h(GithubMark, { size: size || 16 }),
+          // 图标必须是套件标记：这个标签代表 DevDock，平台是在页内切换的。
+          icon: (size) => h(DevDockMark, { size: size || 16 }),
           component: (props) => h(WorkspaceTab, Object.assign({}, props, { ctx })),
         });
         return typeof dispose === 'function' ? dispose : () => {};

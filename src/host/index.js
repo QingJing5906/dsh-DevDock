@@ -103,6 +103,7 @@ import {
   normalizeFinding,
   runModelReview,
   scanSecrets,
+  MAX_FILE_BYTES,
   sortFindings,
 } from './review.js';
 
@@ -2467,6 +2468,197 @@ export class GithubLinkHost extends ServiceClass {
   }
 
   /**
+   * `POST /npm/review/run` — 发布前审查。
+   *
+   * 与 GitHub 的推送前审查共用预设、模型选择与结果结构；差别只在
+   * 审查对象——这里是「npm pack 会打进去的文件」，而不是 git diff。
+   *
+   * @param {object} body `{ path, presetIds, customPrompt, provider, model,
+   *   reasoningEffort, maxFiles }`
+   * @returns {Promise<object>}
+   */
+  async npmPublishReview(body) {
+    const dir = typeof body.path === 'string' && body.path.trim() !== ''
+      ? body.path.trim()
+      : process.cwd();
+
+    // 1. npm 会打进去哪些文件——与打包面板同一数据源，结果必然一致。
+    const runner = this.#npmRunner();
+    const packed = mapPackResult(parsePackJson(
+      (await runner.run(['pack', '--dry-run', '--json'], { cwd: dir })).stdout,
+    ));
+
+    // 2. 读这些文件的文本内容。二进制与超大文件跳过并记下原因。
+    const maxFiles = Number.isFinite(body.maxFiles) ? Number(body.maxFiles) : 80;
+    const maxBytes = MAX_FILE_BYTES;
+    const files = [];
+    const chunks = [];
+    let truncated = false;
+
+    for (const row of packed.files) {
+      if (chunks.length >= maxFiles) { truncated = true; break; }
+      const rel = row.path.replace(/\/$/, '');
+      if (/(^|\/)(node_modules|\.git)\//.test(rel)) continue;
+      if (row.size > maxBytes) {
+        files.push({ path: rel, skipped: '文件过大' });
+        truncated = true;
+        continue;
+      }
+      let text;
+      try {
+        text = await readFile(path.join(dir, rel), 'utf8');
+      } catch {
+        files.push({ path: rel, skipped: '无法读取' });
+        continue;
+      }
+      if (text.includes('\u0000')) {
+        files.push({ path: rel, skipped: '二进制文件' });
+        continue;
+      }
+      files.push({ path: rel });
+      chunks.push({ path: rel, text });
+    }
+
+    // 3. 规则扫描：永远执行，免费且确定。
+    const ruleFindings = [];
+    for (const chunk of chunks) {
+      ruleFindings.push(...scanSecrets(chunk.text, { file: chunk.path }));
+    }
+
+    // 4. 包完整性：这些不是「代码问题」，但发布前必须看见。
+    if (packed.totalFiles === 0) {
+      ruleFindings.push(normalizeFinding({
+        severity: 'blocker',
+        title: '包内没有任何文件',
+        detail: 'npm pack 没有收集到文件，发布出去会是一个空包。检查 files 字段与 .npmignore。',
+        file: 'package.json',
+      }));
+    }
+
+    if (!packed.files.some((row) => /(^|\/)readme(\.md|\.txt)?$/i.test(row.path))) {
+      ruleFindings.push(normalizeFinding({
+        severity: 'medium',
+        title: '包里没有 README',
+        detail: 'npm 页面会没有任何说明文字，用户看到的是一个空白页。',
+        file: 'README.md',
+      }));
+    }
+
+    const sizeLimit = 10 * 1024 * 1024;
+    if (packed.size !== null && packed.size > sizeLimit) {
+      ruleFindings.push(normalizeFinding({
+        severity: 'medium',
+        title: '包体积偏大',
+        detail: `压缩后 ${Math.round(packed.size / 1024)} KB。检查是否误把构建产物或测试数据打进来了。`,
+        file: 'package.json',
+      }));
+    }
+
+    // 5. 模型审查：与 reviewRun 同样的解析方式与调用形状。
+    const presetIds = Array.isArray(body.presetIds)
+      ? body.presetIds.filter((id) => typeof id === 'string' && id !== '')
+      : [];
+    const stored = await this.#store.reviewPresets();
+    const chosen = [
+      ...BUILTIN_PRESETS.filter((preset) => presetIds.includes(preset.id)),
+      ...stored.filter((preset) => presetIds.includes(preset.id)),
+    ];
+    const customPrompt = optionalString(body.customPrompt) ?? '';
+
+    const llm = this.#llm();
+    let provider = optionalString(body.provider);
+    let model = optionalString(body.model);
+    if (llm && (!provider || !model)) {
+      try {
+        const fallback = await this.reviewModels();
+        if (fallback.default) {
+          provider = provider ?? fallback.default.provider;
+          model = model ?? fallback.default.model;
+        }
+      } catch { /* 保留调用方给的值 */ }
+    }
+
+    const instructions = [
+      ...chosen.map((preset) => `## ${preset.title}\n${preset.prompt}`),
+      ...(customPrompt ? [`## 用户补充要求\n${customPrompt}`] : []),
+    ].join('\n\n');
+
+    /* 明确告诉模型它看的是什么、不是什么。少了这段，模型会把
+     * 「没有出现在包里的文件」误报成「项目缺少文件」。 */
+    const promptParts = [];
+    if (instructions !== '') promptParts.push(instructions);
+    promptParts.push('## 审查范围');
+    promptParts.push('本次审查的是 npm 发布包的内容：以下文件就是 npm pack 会打进去的全部文件，'
+      + '不代表项目里只有这些文件。未列出的文件不会随包发布，不要据此推断项目缺少文件。');
+    promptParts.push(`## 包内文件（${files.length} 个，压缩后 ${packed.size ?? 0} 字节）`);
+    promptParts.push(files.map((file) => `- ${file.path}${file.skipped ? `（未送审：${file.skipped}）` : ''}`).join('\n'));
+    promptParts.push('## 内容');
+    promptParts.push(chunks.length === 0
+      ? '（没有可审查的文本内容）'
+      : chunks.map((chunk) => `### ${chunk.path}\n\`\`\`\n${chunk.text}\n\`\`\``).join('\n\n'));
+
+    if (truncated) {
+      promptParts.push('严重提示：因体积或数量限制，本次内容并不完整。只针对你实际看到的内容报告问题。');
+    }
+
+    let modelFindings = [];
+    let summary = '';
+    let usage;
+    let degraded = false;
+
+    if (!llm) {
+      degraded = true;
+      summary = '宿主未提供 llm 服务，本次只执行了规则检查（敏感信息扫描）。';
+    } else if (!provider || !model) {
+      degraded = true;
+      summary = '未找到可用的模型，本次只执行了规则检查（敏感信息扫描）。';
+    } else if (chunks.length === 0) {
+      summary = '包里没有可审查的文本内容。';
+    } else {
+      try {
+        const result = await runModelReview(llm, {
+          provider,
+          model,
+          reasoningEffort: optionalString(body.reasoningEffort),
+          prompt: promptParts.join('\n\n'),
+        });
+        modelFindings = result.findings.map(normalizeFinding);
+        summary = result.summary;
+        usage = result.usage;
+      } catch (error) {
+        degraded = true;
+        summary = `模型审查失败（${String(error && error.message ? error.message : error)}），本次只执行了规则检查。`;
+      }
+    }
+
+    const findings = sortFindings([...ruleFindings, ...modelFindings]);
+    if (summary === '') {
+      summary = findings.length === 0 ? '未发现明显问题。' : `共发现 ${findings.length} 处需要关注的问题。`;
+    }
+
+    return {
+      reviewId: `npmreview_${Date.now().toString(36)}`,
+      scope: 'package',
+      model: provider && model
+        ? { provider, model, label: `${provider} / ${model}` }
+        : null,
+      effort: optionalString(body.reasoningEffort) ?? null,
+      files,
+      findings,
+      summary,
+      usage,
+      degraded,
+      truncated,
+      pack: {
+        totalFiles: packed.totalFiles,
+        size: packed.size,
+        unpackedSize: packed.unpackedSize,
+      },
+    };
+  }
+
+  /**
+   * `POST /npm/publish` — 发布到 npm。  /**
    * `POST /npm/publish` — 发布到 npm。
    *
    * 需要 2FA 的账号必须带 otp；没有 otp 时 npm 的报错会被原样翻译成一句
@@ -3117,6 +3309,7 @@ function buildRoutes(host) {
     get('/npm/pack', async ({ query }) => ({ data: await host.npmPackInspect({ path: query('path') }) })),
     post('/npm/pack', async ({ body }) => ({ data: await host.npmPack(body) })),
     post('/npm/publish', async ({ body }) => ({ data: await host.npmPublish(body) })),
+    post('/npm/review/run', async ({ body }) => ({ data: await host.npmPublishReview(body) })),
     get('/npm/preflight', async ({ query }) => ({
       data: await host.npmPreflight({ path: query('path') }),
     })),

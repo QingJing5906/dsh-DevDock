@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-plugin-4c6ef5.svg)](https://github.com/deepseek-ai)
-[![npm](https://img.shields.io/badge/npm-dsh--harness--push-cb3837.svg)](https://www.npmjs.com/package/dsh-harness-push)
+[![npm](https://img.shields.io/badge/npm-dsh--harness--push-cb3837.svg)](https://www.npmjs.com/package/dsh-devdock)
 [![node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](https://nodejs.org)
 
 ---
@@ -29,7 +29,7 @@
 
 ## 项目简介
 
-`dsh-harness-push` 是 DevDock 套件的 GitHub / Git 模块。它把「看仓库、切账号、提交、推送、撤回」这些每天都要做的事收进 Harness 一个面板里，并把**推送前审查**交给模型——让即将离开本机的内容先被检查一遍。
+`dsh-devdock` 是 DevDock 套件的 GitHub / Git 模块。它把「看仓库、切账号、提交、推送、撤回」这些每天都要做的事收进 Harness 一个面板里，并把**推送前审查**交给模型——让即将离开本机的内容先被检查一遍。
 
 它由两半组成：Host 侧提供一套完整的 GitHub REST 与 Git 命令封装（含令牌安全注入），Client 侧提供设置页、左侧仓库面板和工作区侧边栏。两侧共享同一套服务方法，所以**你在界面上做的操作，和智能体通过工具做的操作，行为完全一致**。
 
@@ -118,18 +118,18 @@ create_repo · release · review
 |---|---|---|
 | 品牌 | **DevDock** | 对外介绍、文档、GitHub 项目页、未来套件首页 |
 | 模块 | **GitHub / Git** | 界面里的平台名（下拉里显示的那个） |
-| npm 包 | **`dsh-harness-push`** | `dsh plugin add` 与 npm 上的真实标识 |
+| npm 包 | **`dsh-devdock`** | `dsh plugin add` 与 npm 上的真实标识 |
 
 > 包名暂不与品牌对齐：它同时是 DSH 的模块身份（`package.json` name、`cordis.patch.yml` 行名、`client.js` 注册 id 三者必须相同），改它等于做一次安装迁移。等第二个模块落地、仓库改成单仓多包时，会一次性迁到 `dsh-devdock-*` 或 `@devdock/*`。
 
-> **命名说明**：npm 包名是 `dsh-harness-push`，GitHub 仓库名是 `dsh-push`。
+> **命名说明**：npm 包名是 `dsh-devdock`，GitHub 仓库名是 `dsh-push`。
 > 两者不同是因为 npm 上的 `dsh-push` 已被另一个用途无关的插件占用。
 > 插件的内部标识（工具名 `github_link`、路由 `/api/push/*`、设置页与侧边栏入口）不受影响。
 
 ### 从 npm 安装（推荐）
 
 ```powershell
-dsh plugin --profile desktop add dsh-harness-push
+dsh plugin --profile desktop add dsh-devdock
 ```
 
 ### 从本地目录安装

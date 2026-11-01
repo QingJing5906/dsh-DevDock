@@ -155,7 +155,7 @@ const check = (label, ok, detail) => checks.push({ label, ok: Boolean(ok), detai
    * explicit: "the browser artifact registers a lazy factory whose id equals
    * the package name".
    *
-   * This shipped broken once: the package was renamed `dsh-harness-push` for
+   * This shipped broken once: the package was renamed `dsh-devdock` for
    * npm while the bundle still registered `dsh-push`. The Host half stayed
    * active, so the plugin looked enabled, but the client module registered
    * under an id nobody resolved and EVERY surface disappeared — settings page,

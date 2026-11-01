@@ -158,7 +158,7 @@ if (!registeredModule) throw new Error('client.js did not call window.__ModuleLo
 /* The loader keys modules by PACKAGE NAME, so the bundle id must equal it.
  * Comparing against the manifest instead of a literal is what keeps a rename
  * from silently unregistering every surface — which is exactly what happened
- * when the package became `dsh-harness-push` while the bundle still said
+ * when the package became `dsh-devdock` while the bundle still said
  * `dsh-push`. */
 const manifest = JSON.parse(
   (await readFile(new URL('../package.json', import.meta.url), 'utf8')).replace(/^\uFEFF/, ''),

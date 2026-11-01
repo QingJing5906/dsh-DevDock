@@ -104,13 +104,14 @@ check('125% 映射成 1.25', M.densityStyle(125).zoom === '1.25', JSON.stringify
 
 /* ---- 6. 四个界面根容器都用了它 ---- */
 const roots = [
-  ["className: 'dsh-push-root dsh-push-settings'", '设置页'],
-  ["className: 'dsh-push-root dsh-push-page'", '仓库页'],
+  ["dsh-push-root dsh-push-settings", '设置页'],
+  ["dsh-push-root dsh-push-page", '仓库页'],
 ];
 for (const [needle, label] of roots) {
   const idx = src.indexOf(needle);
-  const around = idx >= 0 ? src.slice(idx, idx + 160) : '';
-  check(`${label}根容器应用了密度`, around.includes('densityStyle(density)'), needle);
+  // 修饰类（如 --panel）插在中间，所以窗口放宽一些。
+  const around = idx >= 0 ? src.slice(idx, idx + 200) : '';
+  check(label + '根容器应用了密度', around.includes('densityStyle(density)'), needle);
 }
 // 标签页有多个返回分支（无目录 / 非仓库 / 正常 / npm），数量会随功能增加。
 // 断言「所有分支都应用了密度」，而不是写死一个会过期的数字。

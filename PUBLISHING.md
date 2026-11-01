@@ -9,8 +9,8 @@
 | 渠道 | 状态 | 说明 |
 |---|---|---|
 | GitHub 仓库 | ✅ 已发布 | <https://github.com/QingJing5906/dsh-DevDock>（公开） |
-| GitHub Release `v1.0.0` | ✅ 已发布 | 含 `dsh-harness-push-1.0.0.tgz` 附件 |
-| npm | ⬜ 待发布 | 需要 npm 账号；包名已定为 `dsh-harness-push` |
+| GitHub Release `v1.0.0` | ✅ 已发布 | 含 `dsh-devdock-1.0.0.tgz` 附件 |
+| npm | ⬜ 待发布 | 需要 npm 账号；包名已定为 `dsh-devdock` |
 | DSH 插件市场 | ⬜ 待接入 | 本机 DSH 未配置任何市场索引；索引由用户自行添加 |
 
 ### 为什么包名不叫 `dsh-push`
@@ -21,7 +21,7 @@ npm 上的 `dsh-push` 已被另一个用途无关的插件占用：
 - 版本 `0.1.1`（2026-08-13 发布）
 - 用途：「Push DeepSeek Harness agent lifecycle notifications to configurable channels」
 
-因此**发布包名**取 `dsh-harness-push`，**GitHub 仓库名**仍是 `dsh-push`。
+因此**发布包名**取 `dsh-devdock`，**GitHub 仓库名**仍是 `dsh-push`。
 插件内部标识（工具名 `github_link`、路由 `/api/push/*`、cordis 挂载行、界面入口）不受影响，已有安装继续可用。
 
 ---
@@ -44,7 +44,7 @@ npm whoami
 >
 > 1. **交互式发布**（推荐）：`npm login` 后执行 `npm publish`，终端会提示输入认证器里的 6 位码。
 > 2. **令牌发布**：在 npm → Access Tokens 创建 **Granular Access Token**，勾选
->    **Bypass two-factor authentication**，权限选 *Read and write*，只授权 `dsh-harness-push`。
+>    **Bypass two-factor authentication**，权限选 *Read and write*，只授权 `dsh-devdock`。
 >    **没有勾选该选项的令牌只能读、不能发布**（已实测被 403 拒绝）。
 >
 > 令牌一律当作密码对待：不要贴进聊天、不要写进仓库；用完即删、怀疑泄漏立刻吊销。
@@ -76,8 +76,8 @@ git push --follow-tags
 发布后验证：
 
 ```powershell
-npm view dsh-harness-push version
-npm view dsh-harness-push dist.tarball
+npm view dsh-devdock version
+npm view dsh-devdock dist.tarball
 ```
 
 > `prepublishOnly` 已配置为 `npm test`，所以测试不过就发不出去。
@@ -95,9 +95,9 @@ npm view dsh-harness-push dist.tarball
 
 ```powershell
 cd dsh-push
-git tag -a v1.0.1 -m "dsh-harness-push 1.0.1"
+git tag -a v1.0.1 -m "dsh-devdock 1.0.1"
 git push origin v1.0.1
-npm pack                       # 生成 dsh-harness-push-1.0.1.tgz
+npm pack                       # 生成 dsh-devdock-1.0.1.tgz
 # 然后在 GitHub 上创建 release 并上传该 tgz
 ```
 
@@ -117,7 +117,7 @@ Release 说明建议包含：亮点、安装方式、权限要求、附件说明
 DSH 的插件市场索引指向 npm 包。因此顺序是：
 
 1. 先把包发布到 npm（见第 1 节）
-2. 再让市场索引收录 `dsh-harness-push`
+2. 再让市场索引收录 `dsh-devdock`
 
 ### 如果市场要求提交信息
 
@@ -125,7 +125,7 @@ DSH 的插件市场索引指向 npm 包。因此顺序是：
 
 | 字段 | 值 |
 |---|---|
-| `name` | `dsh-harness-push` |
+| `name` | `dsh-devdock` |
 | `description` | DeepSeek Harness 的 GitHub 与 Git 管理插件：多账号登录切换、仓库浏览与管理、工作区版本树、一键推送、推送前 Agent 审查。 |
 | `keywords` | `dsh`, `dsh-plugin`, `deepseek-harness`, `github`, `git`, `push`, `version-control`, `code-review`, `agent`, `release` |
 | `repository` | https://github.com/QingJing5906/dsh-DevDock |
@@ -149,14 +149,14 @@ DSH 的插件市场索引指向 npm 包。因此顺序是：
 
 ```powershell
 # 从 npm（发布之后）
-dsh plugin --profile desktop add dsh-harness-push
+dsh plugin --profile desktop add dsh-devdock
 
 # 从本地目录
 dsh plugin --profile desktop add "<插件目录>\dsh-push"
 
 # 从 Release 附件
-#   下载 dsh-harness-push-1.0.0.tgz 后
-npm install -g ./dsh-harness-push-1.0.0.tgz
+#   下载 dsh-devdock-1.0.0.tgz 后
+npm install -g ./dsh-devdock-1.0.0.tgz
 ```
 
 安装后：设置面板新增 **Push** 一页，左侧栏新增 **Push** 图标，右侧栏 `+` 菜单新增 **Push** 标签页，智能体获得 `github_link` 工具。
@@ -172,4 +172,4 @@ npm install -g ./dsh-harness-push-1.0.0.tgz
 - [ ] `package.json` 的 `version` 与 `CHANGELOG` 一致
 - [ ] 推送前跑一次 **Agent 审查**
 - [ ] Release 说明里的安装命令与实际包名一致
-- [ ] `npm view dsh-harness-push version` 返回新版本
+- [ ] `npm view dsh-devdock version` 返回新版本

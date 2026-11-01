@@ -12,7 +12,7 @@
 ## 产品事实（不要编造，只用这些）
 
 品牌：DevDock（套件的品牌名）
-当前模块：GitHub / Git（npm 包名 dsh-harness-push，这是已公开发布的版本）
+当前模块：GitHub / Git（npm 包名 dsh-devdock，这是已公开发布的版本）
 定位：在 DeepSeek Harness（一个开发者用的 AI 客户端）里管理研发账号与服务，不用在浏览器标签和终端之间来回切换。
 套件的规划：先做 GitHub/Git，后续接入 Cloudflare（Workers / Pages）与 npm。对外只有一个入口、一套操作习惯，平台在入口内部用下拉切换，平台越多占用空间不增加。
 
@@ -54,7 +54,7 @@
 4) 22–32s 亮点二（推送前审查）：截图 + 说明「推送前先过一遍：规则扫描必跑，模型审查可选」
 5) 32–40s 亮点三（版本树 / 推送记忆）：截图或提交图特写 + 说明「每条分支记住上次推到哪」
 6) 40–48s 人机同源：一句话 + 极简示意，例如「同一个能力，界面和智能体都能用」
-7) 48–56s 收尾：品牌 + 安装命令 dsh plugin --profile desktop add dsh-harness-push，下面一行小字「DevDock 套件 · 后续接入 Cloudflare 与 npm」
+7) 48–56s 收尾：品牌 + 安装命令 dsh plugin --profile desktop add dsh-devdock，下面一行小字「DevDock 套件 · 后续接入 Cloudflare 与 npm」
 
 ## 素材：真实截图怎么来
 

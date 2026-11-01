@@ -1,7 +1,7 @@
 {
-  "name": "dsh-harness-push",
-  "version": "1.5.0",
-  "description": "DevDock 套件的 GitHub / Git 模块：多账号登录切换、仓库浏览与管理、工作区版本树、一键推送、推送前 Agent 审查。",
+  "name": "dsh-devdock",
+  "version": "2.0.0",
+  "description": "DevDock · 在 DeepSeek Harness 里管理研发账号与服务。GitHub：多账号、仓库管理、工作区版本树、一键推送、推送前 Agent 审查。npm：账号、包的列表/卡片、打包审查、发布前审查、发布与自检。",
   "type": "module",
   "main": "index.js",
   "exports": {
@@ -33,6 +33,7 @@
     "dsh",
     "dsh-plugin",
     "deepseek-harness",
+    "devdock",
     "github",
     "git",
     "push",
@@ -40,9 +41,10 @@
     "code-review",
     "agent",
     "release",
-    "devdock",
-    "cloudflare",
     "npm",
+    "pack",
+    "publish",
+    "cloudflare",
     "dashboard",
     "account-management"
   ],
@@ -60,9 +62,10 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node tests/verify-client.mjs && node tests/verify-cards.mjs && node tests/verify-tool-surface.mjs && node tests/verify-errors.mjs && node tests/verify-push-memory.mjs && node tests/verify-delete-semantics.mjs && node tests/verify-review-rules.mjs && node tests/verify-review-store.mjs && node tests/verify-review-scope.mjs && node tests/verify-contract.mjs && node tests/verify-render.mjs && node tests/verify-density.mjs && node tests/verify-css.mjs && node tests/verify-platform.mjs && node tests/verify-npm-client.mjs && node tests/verify-npm-store.mjs && node tests/verify-npm-deps.mjs && node tests/verify-review-gate.mjs && node tests/verify-package.mjs && node tests/audit-reachability.mjs",
+    "test": "node tests/verify-client.mjs && node tests/verify-cards.mjs && node tests/verify-tool-surface.mjs && node tests/verify-errors.mjs && node tests/verify-push-memory.mjs && node tests/verify-delete-semantics.mjs && node tests/verify-review-rules.mjs && node tests/verify-review-store.mjs && node tests/verify-review-scope.mjs && node tests/verify-contract.mjs && node tests/verify-render.mjs && node tests/verify-style-inject.mjs && node tests/verify-npm-account-ui.mjs && node tests/verify-density.mjs && node tests/verify-css.mjs && node tests/verify-class-styles.mjs && node tests/verify-spacing.mjs && node tests/verify-tab-spacing.mjs && node tests/verify-header-modal.mjs && node tests/verify-header-entry.mjs && node tests/verify-pick-guide.mjs && node tests/verify-platform.mjs && node tests/verify-surfaces.mjs && node tests/verify-npm-client.mjs && node tests/verify-npm-store.mjs && node tests/verify-npm-deps.mjs && node tests/verify-npm-review.mjs && node tests/verify-npm-review-entry.mjs && node tests/verify-review-gate.mjs && node tests/verify-package.mjs && node tests/audit-reachability.mjs",
     "test:refspec": "powershell -ExecutionPolicy Bypass -File tests/run-refspec.ps1",
-    "prepublishOnly": "npm test"
+    "prepublishOnly": "npm test",
+    "pack:check": "node tests/verify-package.mjs"
   },
   "dsh": {
     "bundle": {
@@ -73,6 +76,107 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-conversation"
       ]
+    },
+    "surfaces": {
+      "settings": {
+        "id": "push",
+        "label": "DevDock",
+        "pages": [
+          {
+            "platform": "github",
+            "title": "GitHub",
+            "content": [
+              "账号卡片",
+              "贡献图",
+              "最近消息",
+              "仓库管理"
+            ]
+          },
+          {
+            "platform": "npm",
+            "title": "npm",
+            "content": [
+              "npm 账号卡片",
+              "我的包（列表/卡片）",
+              "包管理弹窗"
+            ]
+          }
+        ],
+        "options": [
+          "信息密度",
+          "OAuth Client ID",
+          "git 路径",
+          "默认远端",
+          "显示私有仓库"
+        ]
+      },
+      "sidebar": {
+        "id": "push",
+        "label": "DevDock",
+        "icon": "DevDockMark",
+        "platforms": [
+          {
+            "id": "github",
+            "title": "GitHub 仓库",
+            "content": [
+              "仓库搜索",
+              "列表/卡片视图",
+              "仓库管理弹窗",
+              "新建仓库"
+            ]
+          },
+          {
+            "id": "npm",
+            "title": "npm 包",
+            "content": [
+              "包搜索",
+              "我的包",
+              "列表/卡片视图",
+              "包管理弹窗"
+            ]
+          }
+        ],
+        "accountPicker": [
+          "GitHub 账号下拉",
+          "npm 账号下拉"
+        ]
+      },
+      "workspaceTab": {
+        "id": "push",
+        "label": "DevDock",
+        "icon": "DevDockMark",
+        "requires": "betterSidebar",
+        "fallback": "conversation.session.header.utilities",
+        "platforms": [
+          {
+            "id": "github",
+            "title": "工作区 Git",
+            "content": [
+              "提交/推送/拉取",
+              "推送目标与分支",
+              "Agent 审查",
+              "版本树",
+              "发布 Release"
+            ]
+          },
+          {
+            "id": "npm",
+            "title": "项目 npm",
+            "content": [
+              "创建 package.json",
+              "打包审查",
+              "生成压缩包",
+              "发布到 npm（含 2FA）",
+              "发布前自检",
+              "依赖检查"
+            ]
+          }
+        ]
+      },
+      "tool": {
+        "name": "github_link",
+        "note": "同一套能力同时暴露给模型，界面操作与智能体调用行为一致"
+      }
     }
   }
 }
