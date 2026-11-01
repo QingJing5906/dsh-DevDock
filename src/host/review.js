@@ -167,6 +167,37 @@ const SECRET_PATTERNS = [
 const PLACEHOLDER_RE = /^(?:x{3,}|\.{3,}|<[^>]*>|\$\{[^}]*\}|change[-_]?me|your[-_]|example|placeholder|dummy|test|todo|redacted|\*+)$/i;
 
 /**
+ * 判断一段令牌文本是否「明显是测试夹具的假值」。
+ *
+ * 测试为了验证扫描器能抓到各种形态，会写 ghp_bbbbbb…、ghp_AAAAAAAA… 这类
+ * 重复字符占位符。它们不是真实凭据，报成 blocker 只是噪音。
+ *
+ * 判定标准（任一命中即视为假值）：
+ *   - 同一字符连续出现 5 次以上（ghp_bbbbbbbb…）
+ *   - 含 test / example / dummy / fixture / placeholder / sample 字样
+ *   - 本身就是纯占位符（如 xxxxx、******）
+ *
+ * @param {string} matched 扫描到的那段文本
+ * @returns {boolean}
+ */
+function looksLikeFixture(matched) {
+  const text = String(matched ?? '');
+  if (text === '') return false;
+  // 重复字符：同一字符连续 5 次以上（ghp_bbbbbbbb…、ghp_AAAAAAAA…）
+  if (/([A-Za-z0-9])\1{4,}/.test(text)) return true;
+  // 明显的占位/测试字眼。用子串判断而非 \b，因为 test 两侧常是下划线
+  //（ghp_test_token、github_pat_…），\b 会把下划线当成单词字符导致漏判。
+  if (/(?:test|example|dummy|fixture|placeholder|sample|fake|mock)/i.test(text)) return true;
+  // 引号或尖括号里包着纯占位符（token: "<your-token-here>"、
+  // password = "REPLACE_ME"）也要降噪。
+  const inner = /['"]([^'"]+)['"]|<([^>]+)>/.exec(text);
+  if (inner && PLACEHOLDER_RE.test((inner[1] ?? inner[2] ?? '').trim())) return true;
+  // 纯占位符
+  if (PLACEHOLDER_RE.test(text)) return true;
+  return false;
+}
+
+/**
  * Scan one text block for credential shapes.
  *
  * Returns findings with a `line` (1-based within the block) and a short,
@@ -188,11 +219,9 @@ export function scanSecrets(text, where = {}) {
       const match = pattern.re.exec(line);
       if (!match) continue;
       const matched = match[0];
-      // An assignment whose value is an obvious placeholder is not a leak.
-      if (pattern.id === 'assigned-secret') {
-        const value = /['"]([^'"]+)['"]/.exec(matched);
-        if (value && PLACEHOLDER_RE.test(value[1].trim())) continue;
-      }
+      // 测试夹具里的假令牌（重复字符、test/example 字样等）不是泄露，
+      // 对所有令牌类型都跳过，而不只是 assigned-secret 这一种。
+      if (looksLikeFixture(matched)) continue;
       // Skip matches that are themselves already redacted.
       if (/(?:\*{3,}|…|\.\.\.)/.test(matched)) continue;
       findings.push({

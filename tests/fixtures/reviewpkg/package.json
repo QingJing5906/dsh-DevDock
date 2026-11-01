@@ -1,9 +1,0 @@
-{
-  "name": "devdock-review-e2e",
-  "version": "1.0.0",
-  "license": "MIT",
-  "files": [
-    "index.js",
-    "README.md"
-  ]
-}

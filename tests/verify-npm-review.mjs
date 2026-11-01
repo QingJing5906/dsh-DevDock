@@ -81,7 +81,7 @@ const reviewBody = methodBody(hostSrc, 'async npmPublishReview(body) {');
     await writeFile(path.join(dir, 'README.md'), '# fixture\n', 'utf8');
     await writeFile(path.join(dir, 'index.js'), [
       '// 故意放一个假令牌，规则扫描必须抓到',
-      'const token = "ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";',
+      'const token = "ghp_xK9mQ2wN8vL3pR7sT5uY1cD4fG6hJ0kL9ZaQ";',
       'module.exports = token;',
       '',
     ].join('\n'), 'utf8');

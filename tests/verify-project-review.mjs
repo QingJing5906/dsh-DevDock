@@ -88,7 +88,7 @@ const body = methodBody(hostSrc, 'async reviewProject(body) {');
     }, null, 2), 'utf8');
     await writeFile(path.join(dir, 'README.md'), '# fixture\n', 'utf8');
     await writeFile(path.join(dir, 'src/index.js'), [
-      'const token = "ghp_cccccccccccccccccccccccccccccccccccc";',
+      'const token = "ghp_xK9mQ2wN8vL3pR7sT5uY1cD4fG6hJ0kL9ZaQ";',
       'module.exports = token;',
       '',
     ].join('\n'), 'utf8');

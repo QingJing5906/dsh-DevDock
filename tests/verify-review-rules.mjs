@@ -20,15 +20,19 @@ import {
 const checks = [];
 const check = (label, ok, detail) => checks.push({ label, ok: Boolean(ok), detail });
 
-/* ---- 1. each credential shape is detected ------------------------- */
+/* ---- 1. each credential shape is detected -------------------------
+ * 样本用真实随机形态的值，而不是文档里的示例占位符。占位符（如
+ * AKIAIOSFODNN7EXAMPLE、ghp_bbbbbb…）已被降噪逻辑正确跳过，把它们
+ * 当作「必须抓到」的样本会与降噪矛盾。这里验证的是「真实令牌形状」
+ * 能被识别。 */
 const samples = {
-  'GitHub 经典令牌': 'const token = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";',
-  'GitHub 细粒度令牌': 'token: "github_pat_11ABCDEFG0abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"',
-  'OpenAI API Key': 'apiKey = "sk-abcdefghijklmnopqrstuvwxyz0123456789"',
-  'AWS Access Key': 'aws_access_key_id = "AKIAIOSFODNN7EXAMPLE"',
+  'GitHub 经典令牌': 'const token = "ghp_xK9mQ2wN8vL3pR7sT5uY1cD4fG6hJ0kL9ZaQ";',
+  'GitHub 细粒度令牌': 'token: "github_pat_11AbC9XyZ2qW4eR7tY8uI0oP3aS6dF5gH"',
+  'OpenAI API Key': 'apiKey = "sk-pQ3wE8rT2yU5iO0pA6sD9fG1hJ4kL7zX";',
+  'AWS Access Key': 'aws_access_key_id = "AKIAX7V2M9Q4W8E1R3T5";',
   'Slack 令牌': 'slack = "xoxb-1234567890-abcdefghijkl"',
   '私钥块': '-----BEGIN RSA PRIVATE KEY-----',
-  'Authorization 头': 'Authorization: Bearer abcdefghijklmnopqrstuvwxyz012345',
+  'Authorization 头': 'Authorization: Bearer yJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
 };
 for (const [label, line] of Object.entries(samples)) {
   const found = scanSecrets(line, { file: 'a.js' });
@@ -47,12 +51,12 @@ for (const [label, line] of Object.entries(samples)) {
   const found = scanSecrets(lines, { file: 'a.js' });
   const serialized = JSON.stringify(found);
   const leaked = [
-    'ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
-    'github_pat_11ABCDEFG',
-    'sk-abcdefghijklmnop',
-    'AKIAIOSFODNN7EXAMPLE',
+    'ghp_xK9mQ2wN8vL3pR7sT5uY1cD4fG6hJ0kL9ZaQ',
+    'github_pat_11AbC9XyZ',
+    'sk-pQ3wE8rT2yU5',
+    'AKIAX7V2M9Q4W8E1R3T5',
     'xoxb-1234567890',
-    'abcdefghijklmnopqrstuvwxyz012345',
+    'yJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
   ].filter((secret) => serialized.includes(secret));
   check('no raw secret appears anywhere in the findings', leaked.length === 0,
     leaked.length ? `LEAKED: ${leaked.join(', ')}` : `${found.length} findings, clean`);
@@ -83,7 +87,7 @@ for (const [label, line] of Object.entries(samples)) {
 
 /* ---- 5. line numbers are accurate across a block ------------------ */
 {
-  const block = ['line one', 'line two', 'const t = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";', 'line four'].join('\n');
+  const block = ['line one', 'line two', 'const t = "ghp_xK9mQ2wN8vL3pR7sT5uY1cD4fG6hJ0kL9ZaQ";', 'line four'].join('\n');
   const found = scanSecrets(block, { file: 'd.js' });
   check('the reported line matches the real line', found.length === 1 && found[0].line === 3,
     found.length ? String(found[0].line) : 'none');
